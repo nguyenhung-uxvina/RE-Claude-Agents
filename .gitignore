@@ -1,0 +1,59 @@
+# Claude Code local settings
+.claude/
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Editor directories and files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.temp/
+tmp/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+credentials.json
+secrets.yaml
+
+# Build outputs
+dist/
+build/
+out/
+
+# Node modules (if using MCP servers locally)
+node_modules/
+
+# Python
+__pycache__/
+*.py[cod]
+.Python
+venv/
+.venv/
+
+# Project-specific
+# Classified analysis files (add patterns as needed)
+# /projects/classified/
