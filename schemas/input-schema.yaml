@@ -1,0 +1,486 @@
+# Reverse Engineering Agent System - Input Schemas
+# Standard input formats for project initialization and agent requests
+
+---
+# =============================================================================
+# PROJECT INITIALIZATION SCHEMA
+# Used by Orchestrator to receive new analysis requests
+# =============================================================================
+
+project_initialization:
+  description: "Schema for initiating a new reverse engineering project"
+
+  system_identification:
+    designation:
+      type: string
+      required: true
+      description: "Foreign system name/designation"
+      examples:
+        - "12.7mm Remote Weapon Station"
+        - "SA-XX Surface-to-Air Missile"
+        - "Type-XXX Radar System"
+
+    origin_country:
+      type: string
+      required: true
+      description: "Country of origin"
+      examples:
+        - "Russia"
+        - "China"
+        - "United States"
+
+    specimen_type:
+      type: enum
+      required: true
+      values:
+        - physical        # Complete physical specimen available
+        - documentation   # Technical documentation only
+        - intelligence    # Intelligence reports/imagery
+        - captured        # Captured in operational condition
+        - destroyed       # Partially destroyed specimen
+      description: "Type of specimen available for analysis"
+
+    access_level:
+      type: enum
+      required: true
+      values:
+        - full            # Complete unrestricted access
+        - partial         # Limited access (some areas restricted)
+        - remote          # Remote observation only
+        - destroyed       # Damaged/incomplete specimen
+      description: "Level of physical access available"
+
+    security_classification:
+      type: enum
+      required: true
+      values:
+        - UNCLASSIFIED
+        - RESTRICTED
+        - CONFIDENTIAL
+        - SECRET
+        - TOP_SECRET
+      default: UNCLASSIFIED
+      description: "Security classification of the analysis"
+
+  analysis_objective:
+    primary_goal:
+      type: enum
+      required: true
+      values:
+        - replicate       # Develop indigenous equivalent
+        - counter         # Develop countermeasures
+        - insert_tech     # Extract technology for insertion
+        - understand      # Understand capabilities/limitations
+      description: "Primary objective of the analysis"
+
+    target_systems:
+      type: list
+      items: string
+      required: false
+      description: "Indigenous systems to apply knowledge to"
+      examples:
+        - "MTB-20 Patrol Boat"
+        - "Indigenous RCWS Program"
+
+    timeline:
+      type: string
+      required: true
+      description: "Analysis deadline or duration"
+      examples:
+        - "6 months"
+        - "2024-12-31"
+        - "Phase 1: 3 months"
+
+    priority:
+      type: enum
+      required: false
+      values:
+        - critical
+        - high
+        - medium
+        - low
+      default: medium
+
+  constraints:
+    available_equipment:
+      type: list
+      items: string
+      required: false
+      description: "Test equipment available for analysis"
+      examples:
+        - "Oscilloscope"
+        - "Spectrum Analyzer"
+        - "CMM"
+        - "Spectrometer"
+
+    personnel_expertise:
+      type: list
+      items: string
+      required: false
+      description: "Team capabilities and expertise"
+      examples:
+        - "Mechanical Engineering"
+        - "Electronics"
+        - "Software Reverse Engineering"
+
+    budget:
+      type: number
+      required: false
+      description: "Resources available (in local currency)"
+
+    handling_restrictions:
+      type: list
+      items: string
+      required: false
+      description: "Safety or security restrictions"
+      examples:
+        - "No destructive testing"
+        - "Explosive components - EOD required"
+        - "Radioactive materials present"
+
+    destructive_testing_allowed:
+      type: boolean
+      required: false
+      default: false
+      description: "Whether destructive testing/disassembly is permitted"
+
+---
+# =============================================================================
+# DIAGNOSTICIAN INPUT SCHEMA
+# Used when Orchestrator hands off to Diagnostician
+# =============================================================================
+
+diagnostician_input:
+  description: "Schema for Diagnostician agent input"
+
+  project_reference:
+    project_id:
+      type: string
+      required: true
+      description: "Unique project identifier"
+
+    system_designation:
+      type: string
+      required: true
+      description: "System being analyzed"
+
+  specimen_access:
+    location:
+      type: string
+      required: true
+      description: "Where specimen is located"
+
+    access_duration:
+      type: number
+      unit: hours
+      required: true
+      description: "Time available for physical access"
+
+    access_schedule:
+      type: string
+      required: false
+      description: "When access is available"
+
+    handling_restrictions:
+      type: list
+      items: string
+      required: false
+      description: "Safety/security constraints"
+
+    escort_required:
+      type: boolean
+      required: false
+      default: false
+
+  documentation_request:
+    documentation_level:
+      type: enum
+      required: true
+      values:
+        - external        # External observation only
+        - subsystem       # Subsystem-level decomposition
+        - component       # Full component-level analysis
+      description: "Depth of documentation required"
+
+    focus_areas:
+      type: list
+      items: string
+      required: false
+      description: "Specific subsystems to prioritize"
+
+    existing_documentation:
+      type: list
+      items: uri
+      required: false
+      description: "References to previous analysis"
+
+  verification_mode:
+    is_verification:
+      type: boolean
+      required: false
+      default: false
+      description: "Whether this is a verification request from Modeler"
+
+    verification_requests:
+      type: list
+      required: false
+      items:
+        hypothesis:
+          type: string
+          description: "Model hypothesis to verify"
+        test_method:
+          type: string
+          description: "Suggested verification method"
+        component:
+          type: string
+          description: "Component to examine"
+
+---
+# =============================================================================
+# MODELER INPUT SCHEMA
+# Used when Orchestrator hands off to Modeler
+# =============================================================================
+
+modeler_input:
+  description: "Schema for Modeler agent input"
+
+  project_reference:
+    project_id:
+      type: string
+      required: true
+
+    system_designation:
+      type: string
+      required: true
+
+  diagnosis_data:
+    diagnosis_report:
+      type: uri
+      required: true
+      description: "Reference to Diagnostician report"
+
+    component_database:
+      type: uri
+      required: true
+      description: "Reference to Airtable component catalog"
+
+    documentation_completeness:
+      type: number
+      unit: percentage
+      required: true
+      description: "Completeness level of documentation"
+
+  modeling_scope:
+    focus_subsystems:
+      type: list
+      items: string
+      required: false
+      description: "Priority subsystems for modeling"
+
+    modeling_depth:
+      type: enum
+      required: false
+      values:
+        - overview       # High-level function structure
+        - detailed       # Full decomposition
+        - targeted       # Specific subsystem focus
+      default: detailed
+
+  verification_data:
+    has_verification:
+      type: boolean
+      required: false
+      default: false
+      description: "Whether returning from verification loop"
+
+    verification_results:
+      type: list
+      required: false
+      items:
+        hypothesis:
+          type: string
+        result:
+          type: enum
+          values: [verified, contradicted, inconclusive]
+        evidence:
+          type: string
+
+---
+# =============================================================================
+# INTERVENTIONIST INPUT SCHEMA
+# Used when Orchestrator hands off to Interventionist
+# =============================================================================
+
+interventionist_input:
+  description: "Schema for Interventionist agent input"
+
+  project_reference:
+    project_id:
+      type: string
+      required: true
+
+    system_designation:
+      type: string
+      required: true
+
+  model_data:
+    function_structure:
+      type: uri
+      required: true
+      description: "Reference to function structure document"
+
+    working_principles:
+      type: uri
+      required: true
+      description: "Reference to working principle catalog"
+
+    design_paradigm:
+      type: object
+      required: true
+      properties:
+        stated_goal:
+          type: string
+        actual_goal:
+          type: string
+        design_philosophy:
+          type: string
+        key_constraints:
+          type: list
+          items: string
+
+  analysis_objective:
+    primary_goal:
+      type: enum
+      required: true
+      values:
+        - replicate
+        - counter
+        - insert_tech
+        - understand
+
+    target_systems:
+      type: list
+      items: string
+      required: false
+
+    constraints:
+      budget:
+        type: number
+        required: false
+      timeline:
+        type: string
+        required: false
+      manufacturing_capability:
+        type: list
+        items: string
+        required: false
+
+  strategy_focus:
+    strategies_to_evaluate:
+      type: list
+      items:
+        type: enum
+        values:
+          - replication
+          - counter_system
+          - technology_insertion
+      required: false
+      description: "Specific strategies to evaluate (default: all applicable)"
+
+---
+# =============================================================================
+# REFLECTOR INPUT SCHEMA
+# Used when Orchestrator hands off to Reflector
+# =============================================================================
+
+reflector_input:
+  description: "Schema for Reflector agent input"
+
+  project_reference:
+    project_id:
+      type: string
+      required: true
+
+    system_designation:
+      type: string
+      required: true
+
+  all_artifacts:
+    diagnosis_report:
+      type: uri
+      required: true
+
+    modeling_report:
+      type: uri
+      required: true
+
+    intervention_report:
+      type: uri
+      required: true
+
+    function_structure:
+      type: uri
+      required: true
+
+    working_principles:
+      type: uri
+      required: true
+
+    component_database:
+      type: uri
+      required: true
+
+  timeline_comparison:
+    planned:
+      start_date:
+        type: datetime
+        required: true
+      end_date:
+        type: datetime
+        required: true
+      phase_durations:
+        type: object
+        properties:
+          diagnosis: string
+          modeling: string
+          intervention: string
+
+    actual:
+      start_date:
+        type: datetime
+        required: true
+      end_date:
+        type: datetime
+        required: true
+      phase_durations:
+        type: object
+        properties:
+          diagnosis: string
+          modeling: string
+          intervention: string
+
+  outcomes:
+    planned_outcomes:
+      type: list
+      items: string
+      required: true
+
+    actual_outcomes:
+      type: list
+      items: string
+      required: true
+
+    deviations:
+      type: list
+      items: string
+      required: false
+
+  team_info:
+    team_composition:
+      type: list
+      items: string
+      required: false
+
+    initial_capabilities:
+      type: object
+      required: false

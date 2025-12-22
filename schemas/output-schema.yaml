@@ -1,0 +1,925 @@
+# Reverse Engineering Agent System - Output Schemas
+# Standard output formats for agent reports and deliverables
+
+---
+# =============================================================================
+# ORCHESTRATOR OUTPUT SCHEMA
+# Final project deliverables
+# =============================================================================
+
+orchestrator_output:
+  description: "Schema for final project output from Orchestrator"
+
+  analysis_complete:
+    status:
+      type: enum
+      required: true
+      values:
+        - complete        # All phases completed successfully
+        - partial         # Some phases incomplete
+        - blocked         # Unable to proceed
+      description: "Overall completion status"
+
+    completion_percentage:
+      type: number
+      unit: percentage
+      required: true
+
+    deliverables:
+      function_structure:
+        type: uri
+        required: true
+        description: "Function structure document location"
+
+      working_principles:
+        type: uri
+        required: true
+        description: "Working principle catalog location"
+
+      recommendations:
+        type: uri
+        required: true
+        description: "Application recommendations location"
+
+      paradigm_analysis:
+        type: uri
+        required: true
+        description: "Design philosophy report location"
+
+      component_database:
+        type: uri
+        required: true
+        description: "Airtable component database reference"
+
+    next_actions:
+      type: list
+      items:
+        action:
+          type: string
+        priority:
+          type: enum
+          values: [critical, high, medium, low]
+        owner:
+          type: string
+      description: "Recommended follow-up actions"
+
+    lessons_learned:
+      type: list
+      items:
+        lesson:
+          type: string
+        category:
+          type: enum
+          values: [paradigm, process, capability, tool, technical]
+        applicability:
+          type: string
+      description: "Key lessons from this project"
+
+    project_metrics:
+      total_duration:
+        type: string
+      phases_completed:
+        type: number
+      components_cataloged:
+        type: number
+      functions_identified:
+        type: number
+      working_principles_documented:
+        type: number
+      lessons_captured:
+        type: number
+
+---
+# =============================================================================
+# DIAGNOSTICIAN OUTPUT SCHEMA
+# Physical documentation and pattern analysis
+# =============================================================================
+
+diagnostician_output:
+  description: "Schema for Diagnostician agent output"
+
+  metadata:
+    project_id:
+      type: string
+      required: true
+    system_designation:
+      type: string
+      required: true
+    documentation_date:
+      type: datetime
+      required: true
+    analyst:
+      type: string
+      required: false
+    classification:
+      type: string
+      required: true
+
+  documentation_completeness:
+    overall:
+      type: number
+      unit: percentage
+      required: true
+    by_level:
+      external:
+        type: number
+        unit: percentage
+      subsystem:
+        type: number
+        unit: percentage
+      component:
+        type: number
+        unit: percentage
+    gaps_remaining:
+      type: number
+      required: true
+
+  physical_data:
+    external_observation:
+      dimensional:
+        overall_dimensions:
+          length:
+            type: number
+            unit: mm
+          width:
+            type: number
+            unit: mm
+          height:
+            type: number
+            unit: mm
+        weight:
+          type: number
+          unit: kg
+        mounting_interfaces:
+          type: list
+          items:
+            interface_id: string
+            type: string
+            dimensions: object
+
+      interfaces:
+        electrical_connectors:
+          type: list
+          items:
+            connector_id: string
+            type: string
+            pin_count: number
+            voltage_markings: string
+        hydraulic_ports:
+          type: list
+          items:
+            port_id: string
+            type: string
+            size: string
+        pneumatic_fittings:
+          type: list
+        data_interfaces:
+          type: list
+
+      markings:
+        manufacturer_labels:
+          type: list
+          items:
+            text: string
+            location: string
+            image_ref: uri
+        part_numbers:
+          type: list
+          items:
+            number: string
+            type: enum
+            values: [manufacturer, military, nato_stock]
+            decoded: object
+        serial_numbers:
+          type: list
+        mil_spec_markings:
+          type: list
+        safety_warnings:
+          type: list
+
+      materials:
+        visible_materials:
+          type: list
+          items:
+            component: string
+            material: string
+            confidence: number
+        surface_treatments:
+          type: list
+        corrosion_evidence:
+          type: list
+
+    subsystem_decomposition:
+      assembly_hierarchy:
+        top_level_assemblies:
+          type: list
+          items:
+            assembly_id: string
+            name: string
+            function_inferred: string
+        subassembly_breakdown:
+          type: tree
+        fastener_types:
+          type: list
+
+      interfaces:
+        cable_harness_routing:
+          type: uri
+          description: "Diagram reference"
+        mechanical_connections:
+          type: list
+        seal_types:
+          type: list
+        lubrication_points:
+          type: list
+
+      manufacturing_signatures:
+        casting_marks:
+          type: list
+        machining_patterns:
+          type: list
+        assembly_sequence_evidence:
+          type: list
+
+    component_catalog:
+      total_components:
+        type: number
+      identified:
+        type: number
+      custom:
+        type: number
+      cots:
+        type: number
+      unknown:
+        type: number
+      catalog_reference:
+        type: uri
+        description: "Airtable database reference"
+
+  pattern_analysis:
+    design_paradigm:
+      summary:
+        type: string
+      confidence:
+        type: number
+        unit: percentage
+      safety_margins:
+        observed_factors: number
+        risk_tolerance: enum
+        values: [conservative, balanced, aggressive]
+      modularity:
+        level: enum
+        values: [low, medium, high]
+        maintenance_philosophy: string
+      material_selection:
+        cost_vs_performance: enum
+        values: [cost_optimized, balanced, performance_optimized]
+        weight_sensitivity: enum
+        values: [low, medium, high, critical]
+
+    manufacturing_paradigm:
+      summary:
+        type: string
+      volume_estimate:
+        type: string
+      automation_level:
+        type: enum
+        values: [manual, semi_automated, fully_automated]
+      quality_level:
+        type: string
+
+    quality_paradigm:
+      summary:
+        type: string
+      standards_identified:
+        type: list
+        items: string
+
+  gaps_detected:
+    missing_documentation:
+      type: list
+      items:
+        item: string
+        importance: enum
+        values: [critical, high, medium, low]
+        resolution: string
+
+    access_required:
+      type: list
+      items:
+        access_type: string
+        purpose: string
+        blocking: boolean
+
+    equipment_needed:
+      type: list
+      items:
+        equipment: string
+        purpose: string
+        available: boolean
+
+  intelligence_value:
+    part_numbers_decoded:
+      type: list
+      items:
+        part_number: string
+        decoded_to: string
+        supplier_chain: list
+
+    mil_specs_identified:
+      type: list
+      items:
+        spec: string
+        requirement: string
+        implications: string
+
+    design_standards_inferred:
+      type: list
+      items:
+        standard: string
+        evidence: string
+
+  handoff_status:
+    ready:
+      type: boolean
+      required: true
+    blockers:
+      type: list
+      items: string
+    confidence_level:
+      type: number
+      unit: percentage
+    priority_focus_areas:
+      type: list
+      items: string
+
+---
+# =============================================================================
+# MODELER OUTPUT SCHEMA
+# Function structure and working principles
+# =============================================================================
+
+modeler_output:
+  description: "Schema for Modeler agent output"
+
+  metadata:
+    project_id:
+      type: string
+      required: true
+    modeling_date:
+      type: datetime
+      required: true
+    analyst:
+      type: string
+    version:
+      type: string
+
+  function_structure:
+    overall_function:
+      type: string
+      required: true
+      description: "Single sentence: verb + noun + qualifier"
+
+    hierarchy:
+      depth:
+        type: number
+        description: "Levels of decomposition"
+      total_functions:
+        type: number
+      essential:
+        type: number
+      auxiliary:
+        type: number
+
+    subfunctions:
+      type: list
+      items:
+        function_id:
+          type: string
+        parent:
+          type: string
+        statement:
+          type: string
+        inputs:
+          type: list
+        outputs:
+          type: list
+        physical_elements:
+          type: list
+        essential_vs_auxiliary:
+          type: enum
+          values: [essential, auxiliary]
+
+    diagram:
+      type: uri
+      required: true
+      description: "Mermaid/DOT diagram file reference"
+
+    flow_analysis:
+      energy_flows:
+        type: list
+        items:
+          flow_id: string
+          input: object
+          transformations: list
+          output: object
+      material_flows:
+        type: list
+      signal_flows:
+        type: list
+
+  working_principles:
+    catalog:
+      type: list
+      items:
+        subfunction_id:
+          type: string
+        function_statement:
+          type: string
+        physical_effect:
+          name: string
+          category: enum
+          values: [mechanical, electrical, thermal, fluid, chemical, optical]
+        effect_carrier:
+          type: string
+        form_design_features:
+          type: list
+        working_principle_name:
+          type: string
+        alternatives_considered:
+          type: list
+        design_catalog_reference:
+          type: string
+
+    total_principles:
+      type: number
+
+    novel_solutions:
+      type: list
+      items:
+        principle: string
+        novelty: string
+        significance: string
+
+    standard_solutions:
+      type: number
+
+  trade_offs_revealed:
+    type: list
+    items:
+      trade_off:
+        type: string
+      option_chosen:
+        type: string
+      option_rejected:
+        type: string
+      rationale_inferred:
+        type: string
+      impact:
+        type: string
+      applicable_learning:
+        type: string
+
+  design_paradigm_reconstruction:
+    stated_goal:
+      type: string
+      required: true
+    actual_goal:
+      type: string
+      required: true
+    key_constraints:
+      type: list
+      items: string
+    design_philosophy:
+      type: string
+      required: true
+    risk_approach:
+      type: enum
+      values: [risk_averse, balanced, risk_tolerant]
+    innovation_level:
+      type: enum
+      values: [conservative, incremental, innovative]
+    confidence:
+      type: number
+      unit: percentage
+
+  performance_estimation:
+    derived_specifications:
+      type: list
+      items:
+        parameter: string
+        value: string
+        derivation_method: string
+        confidence: number
+
+    confidence_levels:
+      high_confidence:
+        type: list
+      medium_confidence:
+        type: list
+      low_confidence:
+        type: list
+
+    validation_requirements:
+      type: list
+      items:
+        requirement: string
+        test_method: string
+        status: enum
+        values: [validated, pending, not_possible]
+
+  handoff_status:
+    ready:
+      type: boolean
+      required: true
+    models_validated:
+      type: list
+    uncertainties:
+      type: list
+      items:
+        area: string
+        uncertainty: string
+        impact: string
+    priority_insights:
+      type: list
+
+---
+# =============================================================================
+# INTERVENTIONIST OUTPUT SCHEMA
+# Recommendations and application strategies
+# =============================================================================
+
+interventionist_output:
+  description: "Schema for Interventionist agent output"
+
+  metadata:
+    project_id:
+      type: string
+      required: true
+    intervention_date:
+      type: datetime
+      required: true
+    analyst:
+      type: string
+    classification:
+      type: string
+
+  executive_summary:
+    primary_recommendation:
+      type: string
+      required: true
+    confidence_level:
+      type: number
+      unit: percentage
+      required: true
+    expected_impact:
+      type: string
+      required: true
+    key_risks:
+      type: list
+      items: string
+    immediate_actions:
+      type: list
+      items: string
+
+  replication_pathway:
+    feasibility:
+      type: number
+      unit: percentage
+    recommended_approach:
+      type: string
+    morphological_solution:
+      type: string
+      description: "Selected combination from matrix"
+
+    critical_challenges:
+      type: list
+      items:
+        challenge: string
+        mitigation: string
+        residual_risk: string
+
+    development_requirements:
+      time: string
+      cost: string
+      personnel: string
+      facilities: string
+
+    implementation_phases:
+      type: list
+      items:
+        phase: number
+        description: string
+        duration: string
+        deliverables: list
+
+    vdi_2225_results:
+      criteria:
+        type: list
+      solutions_evaluated:
+        type: list
+      ranking:
+        type: list
+      recommended:
+        type: string
+      score:
+        type: number
+
+  counter_system_options:
+    vulnerabilities_identified:
+      type: number
+    vulnerability_details:
+      type: list
+      items:
+        vulnerability: string
+        target: string
+        exploitation_method: string
+        impact: enum
+        values: [degraded, disabled, destroyed]
+
+    recommended_countermeasures:
+      type: list
+      items:
+        countermeasure: string
+        target: string
+        method: string
+        effectiveness: number
+        development_status: string
+
+    effectiveness_estimates:
+      best_case: string
+      expected: string
+      worst_case: string
+
+    integrated_strategy:
+      type: string
+
+  technology_insertion:
+    candidates_identified:
+      type: number
+
+    priority_insertions:
+      type: list
+      items:
+        insertion: string
+        foreign_principle: string
+        target_system: string
+        expected_benefit: string
+        feasibility: enum
+        values: [high, medium, low]
+
+    implementation_roadmap:
+      near_term:
+        type: list
+        description: "0-6 months"
+      medium_term:
+        type: list
+        description: "6-18 months"
+      long_term:
+        type: list
+        description: "18+ months"
+
+  leverage_point_summary:
+    high_leverage_findings:
+      type: list
+      items:
+        finding: string
+        leverage_level: string
+        impact: string
+        action: string
+
+    actionable_immediately:
+      type: list
+      items: string
+
+    requires_development:
+      type: list
+      items: string
+
+    strategic_implications:
+      type: list
+      items: string
+
+  handoff_status:
+    recommendations_ready:
+      type: boolean
+      required: true
+    implementation_tracked:
+      type: boolean
+    open_questions:
+      type: list
+    areas_for_reflection:
+      type: list
+
+---
+# =============================================================================
+# REFLECTOR OUTPUT SCHEMA
+# Lessons learned and process improvements
+# =============================================================================
+
+reflector_output:
+  description: "Schema for Reflector agent output"
+
+  metadata:
+    project_id:
+      type: string
+      required: true
+    reflection_date:
+      type: datetime
+      required: true
+    analyst:
+      type: string
+    version:
+      type: string
+
+  after_action_review:
+    summary:
+      type: string
+      required: true
+
+    what_was_planned:
+      original_objective: string
+      expected_timeline: string
+      expected_outcomes: list
+
+    what_actually_happened:
+      actual_timeline: string
+      actual_outcomes: list
+      deviations: list
+
+    key_successes:
+      type: list
+      items:
+        success: string
+        contributing_factors: list
+
+    key_challenges:
+      type: list
+      items:
+        challenge: string
+        root_cause: string
+        resolution: string
+
+    root_causes_identified:
+      type: number
+
+    improvement_actions:
+      type: list
+      items:
+        action: string
+        addresses: string
+        priority: enum
+        values: [high, medium, low]
+        status: enum
+        values: [identified, planned, in_progress, complete]
+
+  paradigm_insights:
+    assumptions_validated:
+      type: list
+      items:
+        assumption: string
+        evidence: string
+        confidence: number
+
+    assumptions_challenged:
+      type: list
+      items:
+        assumption: string
+        challenging_evidence: string
+        new_understanding: string
+        impact: enum
+        values: [local, systemic, paradigmatic]
+
+    mental_model_updates:
+      type: list
+      items:
+        old_model: string
+        new_model: string
+        trigger: string
+        implications: string
+
+    foreign_paradigm_summary:
+      type: string
+      required: true
+
+    transferable_principles:
+      type: list
+      items:
+        principle: string
+        context: string
+        adaptation_needed: string
+
+  capability_development:
+    gaps_identified:
+      type: list
+      items:
+        gap: string
+        severity: enum
+        values: [critical, high, medium, low]
+        remediation: string
+        timeline: string
+
+    skills_built:
+      type: list
+      items:
+        skill: string
+        team_member: string
+        improvement: string
+        evidence: string
+
+    process_improvements:
+      type: list
+      items:
+        improvement: string
+        current_state: string
+        proposed_change: string
+        expected_benefit: string
+        priority: enum
+        values: [critical, high, medium, low]
+        status: enum
+        values: [identified, evaluated, approved, implementing, complete]
+
+    tools_recommended:
+      type: list
+      items:
+        tool: string
+        purpose: string
+        priority: string
+
+  knowledge_captured:
+    databases_updated:
+      type: list
+      items:
+        database: string
+        records_added: number
+        records_modified: number
+
+    documentation_created:
+      type: list
+      items:
+        document: string
+        location: uri
+        type: string
+
+    cross_references:
+      type: list
+      items:
+        from: string
+        to: string
+        relationship: string
+
+  next_cycle_recommendations:
+    new_cycle_needed:
+      type: boolean
+      required: true
+    rationale:
+      type: string
+
+    focus_areas:
+      type: list
+      items:
+        area: string
+        reason: string
+        expected_value: string
+
+    methodology_changes:
+      type: list
+      items:
+        change: string
+        reason: string
+
+    resource_requirements:
+      type: list
+      items:
+        resource: string
+        purpose: string
+        priority: string
+
+  meta_learning:
+    about_learning_itself:
+      type: list
+      items:
+        insight: string
+        implication: string
+
+    organizational_improvements:
+      type: list
+      items:
+        improvement: string
+        scope: enum
+        values: [team, process, system, organization]
+        priority: string
+
+  project_closure:
+    ready_for_closure:
+      type: boolean
+      required: true
+    outstanding_items:
+      type: list
+    final_status:
+      type: enum
+      values: [complete, partial, deferred]
+      required: true
+    success_rating:
+      type: number
+      unit: percentage

@@ -1,0 +1,86 @@
+%% 12.7mm RCWS Function Structure Diagram
+%% Project: RE-RCWS-001
+%% Version: 1.0
+
+flowchart TB
+    subgraph OVERALL["Enable remote engagement of surface/air targets from protected position"]
+
+        subgraph F1["F1: ACQUIRE TARGET"]
+            F1.1["F1.1: Sense visual spectrum<br/><i>Daylight camera</i>"]
+            F1.2["F1.2: Sense thermal spectrum<br/><i>Uncooled microbolometer</i>"]
+            F1.3["F1.3: Process imagery<br/><i>Video processor</i>"]
+            F1.4["F1.4: Display to operator<br/><i>LCD display</i>"]
+            F1.1 --> F1.3
+            F1.2 --> F1.3
+            F1.3 --> F1.4
+        end
+
+        subgraph F2["F2: TRACK TARGET"]
+            F2.1["F2.1: Calculate motion<br/><i>Tracking algorithm</i>"]
+            F2.2["F2.2: Predict position<br/><i>Kalman filter</i>"]
+            F2.3["F2.3: Generate commands<br/><i>Servo controller</i>"]
+            F2.1 --> F2.2
+            F2.2 --> F2.3
+        end
+
+        subgraph F3["F3: POINT WEAPON"]
+            F3.1["F3.1: Rotate azimuth<br/><i>BLDC motor + gearbox</i>"]
+            F3.2["F3.2: Elevate weapon<br/><i>BLDC motor + gearbox</i>"]
+            F3.3["F3.3: Stabilize aim<br/><i>MEMS gyro + PID</i>"]
+            F3.1 --> F3.3
+            F3.2 --> F3.3
+        end
+
+        subgraph F4["F4: FIRE WEAPON"]
+            F4.1["F4.1: Arm system<br/><i>Safety interlock</i>"]
+            F4.2["F4.2: Verify conditions<br/><i>Ready logic</i>"]
+            F4.3["F4.3: Actuate trigger<br/><i>Solenoid</i>"]
+            F4.4["F4.4: Feed ammunition<br/><i>Belt feed</i>"]
+            F4.1 --> F4.2
+            F4.2 --> F4.3
+            F4.3 --> F4.4
+        end
+
+        subgraph F5["F5: SUPPORT OPERATIONS (Auxiliary)"]
+            F5.1["F5.1: Distribute power<br/><i>DC-DC converters</i>"]
+            F5.2["F5.2: Protect components<br/><i>Environmental sealing</i>"]
+            F5.3["F5.3: Provide interface<br/><i>Connectors, slip ring</i>"]
+        end
+
+        %% Energy flows (red)
+        ExtPower["⚡ 28VDC Power"] --> F5.1
+        F5.1 --> |"5V, 12V, 28V"| F1.1
+        F5.1 --> |"28V"| F3.1
+        F5.1 --> |"28V"| F3.2
+        F5.1 --> |"28V"| F4.3
+
+        %% Material flows (green)
+        Ammo["🔩 Ammunition"] --> F4.4
+        F4.4 --> |"Cartridge"| F4.3
+        F4.3 --> |"Projectile"| Target["🎯 Target Effect"]
+        F4.3 --> |"Casing"| Eject["Ejection"]
+
+        %% Signal flows (blue dashed)
+        F1.3 -.-> |"Target data"| F2.1
+        F2.3 -.-> |"Servo commands"| F3.1
+        F2.3 -.-> |"Servo commands"| F3.2
+        F3.3 -.-> |"Gyro feedback"| F2.3
+        F2.3 -.-> |"Fire command"| F4.2
+
+        %% Operator interface
+        Operator["👤 Operator"] -.-> |"Commands"| F1.4
+        F1.4 -.-> |"Video"| Operator
+        Operator -.-> |"Fire trigger"| F4.1
+
+    end
+
+    %% Styling
+    style F1 fill:#e3f2fd,stroke:#1976d2
+    style F2 fill:#e8f5e9,stroke:#388e3c
+    style F3 fill:#fff3e0,stroke:#f57c00
+    style F4 fill:#ffebee,stroke:#d32f2f
+    style F5 fill:#f3e5f5,stroke:#7b1fa2
+
+    style ExtPower fill:#ffcdd2,stroke:#d32f2f
+    style Ammo fill:#c8e6c9,stroke:#388e3c
+    style Operator fill:#bbdefb,stroke:#1976d2

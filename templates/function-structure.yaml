@@ -1,0 +1,307 @@
+# Function Structure Template
+# Use this template to document the function structure of analyzed systems
+
+---
+metadata:
+  project_id: "RE-XXX-001"
+  system_designation: "[System Name]"
+  version: "1.0"
+  created_date: "YYYY-MM-DD"
+  last_modified: "YYYY-MM-DD"
+  analyst: "[Name]"
+  status: "draft"  # draft, validated, approved
+
+---
+# OVERALL FUNCTION
+# Single sentence: verb + noun + qualifier
+# Example: "Enable remote engagement of targets from protected position"
+
+overall_function:
+  statement: "[Verb] [noun] [qualifier/constraint]"
+  abstraction_level: "purpose"  # purpose, task, action
+
+  inputs:
+    - type: "energy"
+      description: "[e.g., Electrical power 28VDC]"
+    - type: "material"
+      description: "[e.g., Ammunition]"
+    - type: "signal"
+      description: "[e.g., Operator commands]"
+
+  outputs:
+    - type: "energy"
+      description: "[e.g., Kinetic energy to target]"
+    - type: "material"
+      description: "[e.g., Spent casings]"
+    - type: "signal"
+      description: "[e.g., Status feedback]"
+
+---
+# PRIMARY SUBFUNCTIONS (Level 1)
+# Decomposition of overall function into main subfunctions
+
+primary_subfunctions:
+
+  - function_id: "F1"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"  # essential, auxiliary
+
+    inputs:
+      - flow_id: "E1"
+        type: "energy"
+        from: "external"
+        description: "[Description]"
+
+    outputs:
+      - flow_id: "S1"
+        type: "signal"
+        to: "F2"
+        description: "[Description]"
+
+    physical_elements:
+      - component_id: "C001"
+        name: "[Component name]"
+      - component_id: "C002"
+        name: "[Component name]"
+
+    decomposition_basis: "flow"  # flow, sequence, physical, logical
+
+  - function_id: "F2"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"
+
+    inputs:
+      - flow_id: "S1"
+        type: "signal"
+        from: "F1"
+        description: "[Description]"
+
+    outputs:
+      - flow_id: "S2"
+        type: "signal"
+        to: "F3"
+        description: "[Description]"
+
+    physical_elements:
+      - component_id: "C003"
+        name: "[Component name]"
+
+    decomposition_basis: "logical"
+
+  - function_id: "F3"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"
+    inputs: []
+    outputs: []
+    physical_elements: []
+    decomposition_basis: "physical"
+
+  - function_id: "F4"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "auxiliary"
+    inputs: []
+    outputs: []
+    physical_elements: []
+    decomposition_basis: "flow"
+
+---
+# SECONDARY SUBFUNCTIONS (Level 2)
+# Further decomposition of primary subfunctions
+
+secondary_subfunctions:
+
+  # Decomposition of F1
+  - function_id: "F1.1"
+    parent: "F1"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"
+    inputs:
+      - flow_id: "E1.1"
+        type: "energy"
+        from: "F1"
+        description: ""
+    outputs:
+      - flow_id: "E1.2"
+        type: "energy"
+        to: "F1.2"
+        description: ""
+    physical_elements:
+      - component_id: "C001"
+        name: ""
+    working_principle_ref: "WP-001"
+
+  - function_id: "F1.2"
+    parent: "F1"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"
+    inputs: []
+    outputs: []
+    physical_elements: []
+    working_principle_ref: "WP-002"
+
+  # Decomposition of F2
+  - function_id: "F2.1"
+    parent: "F2"
+    statement: "[Verb] [noun] [qualifier]"
+    type: "essential"
+    inputs: []
+    outputs: []
+    physical_elements: []
+    working_principle_ref: "WP-003"
+
+---
+# TERTIARY SUBFUNCTIONS (Level 3)
+# Deepest level of decomposition (if needed)
+
+tertiary_subfunctions:
+
+  - function_id: "F1.1.1"
+    parent: "F1.1"
+    statement: "[Verb] [noun] [qualifier]"
+    physical_elements: []
+    working_principle_ref: ""
+
+---
+# FLOW ANALYSIS
+
+energy_flows:
+  - flow_id: "E1"
+    name: "Primary Power"
+    type: "electrical"
+    source: "external"
+    destination: "F1"
+    magnitude: "28VDC, 50A max"
+
+  - flow_id: "E2"
+    name: "Mechanical Power"
+    type: "mechanical"
+    source: "F1.1"
+    destination: "F1.2"
+    magnitude: "500W"
+    form: "rotational"
+
+material_flows:
+  - flow_id: "M1"
+    name: "Ammunition Feed"
+    material: "12.7mm cartridge"
+    form: "solid"
+    source: "external"
+    destination: "F4"
+    rate: "600 rounds/min max"
+
+signal_flows:
+  - flow_id: "S1"
+    name: "Target Data"
+    type: "digital"
+    source: "F1"
+    destination: "F2"
+    format: "serial data"
+    protocol: "RS-422"
+    content: "target coordinates, classification"
+
+  - flow_id: "S2"
+    name: "Aim Commands"
+    type: "analog"
+    source: "F2"
+    destination: "F3"
+    format: "+/- 10V"
+    content: "azimuth, elevation rates"
+
+---
+# FUNCTION STRUCTURE DIAGRAM (Mermaid)
+
+diagram:
+  format: "mermaid"
+  code: |
+    flowchart TB
+      subgraph OVERALL["[Overall Function Statement]"]
+
+        subgraph F1["F1: [Subfunction 1 Statement]"]
+          F1.1["F1.1: [Sub-subfunction]"]
+          F1.2["F1.2: [Sub-subfunction]"]
+          F1.1 --> F1.2
+        end
+
+        subgraph F2["F2: [Subfunction 2 Statement]"]
+          F2.1["F2.1: [Sub-subfunction]"]
+        end
+
+        subgraph F3["F3: [Subfunction 3 Statement]"]
+          F3.1["F3.1: [Sub-subfunction]"]
+        end
+
+        subgraph F4["F4: [Subfunction 4 Statement] (Auxiliary)"]
+          F4.1["F4.1: [Sub-subfunction]"]
+        end
+
+        %% Energy flows (red)
+        ExtPower["⚡ External Power"] -->|E1| F1.1
+        F1.2 -->|E2| F3.1
+
+        %% Material flows (green)
+        ExtMaterial["🔩 Material Input"] -->|M1| F4.1
+        F4.1 -->|M2| F3.1
+
+        %% Signal flows (blue dashed)
+        F1.2 -.->|S1| F2.1
+        F2.1 -.->|S2| F3.1
+
+        %% Outputs
+        F3.1 -->|Output| ExtOutput["📤 System Output"]
+
+      end
+
+      style F1 fill:#e3f2fd
+      style F2 fill:#e8f5e9
+      style F3 fill:#fff3e0
+      style F4 fill:#f3e5f5
+
+---
+# VALIDATION CHECKLIST
+
+validation:
+  completeness:
+    all_components_mapped:
+      status: false  # true/false
+      unmapped_components: []
+      notes: ""
+
+    all_flows_traced:
+      status: false
+      untraced_flows: []
+      notes: ""
+
+    all_functions_assigned:
+      status: false
+      orphan_components: []
+      notes: ""
+
+  consistency:
+    energy_conservation:
+      status: false
+      discrepancies: []
+      explanation: ""
+
+    material_balance:
+      status: false
+      discrepancies: []
+      explanation: ""
+
+    signal_integrity:
+      status: false
+      gaps: []
+      explanation: ""
+
+  overall_validation_score: 0  # percentage
+
+---
+# DECOMPOSITION RATIONALE
+
+decomposition_notes:
+  - function_id: "F1"
+    rationale: "[Why this function was identified and how it was decomposed]"
+    alternatives_considered: "[Other decomposition approaches considered]"
+
+  - function_id: "F2"
+    rationale: ""
+    alternatives_considered: ""

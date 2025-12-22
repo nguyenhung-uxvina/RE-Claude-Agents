@@ -1,0 +1,308 @@
+# Working Principles Catalog Template
+# Documents the working principles identified for each subfunction
+
+---
+metadata:
+  project_id: "RE-XXX-001"
+  system_designation: "[System Name]"
+  version: "1.0"
+  created_date: "YYYY-MM-DD"
+  last_modified: "YYYY-MM-DD"
+  analyst: "[Name]"
+  function_structure_ref: "[URI to function structure document]"
+
+---
+# CATALOG SUMMARY
+
+summary:
+  total_principles: 0
+  by_category:
+    mechanical: 0
+    electrical: 0
+    thermal: 0
+    fluid: 0
+    chemical: 0
+    optical: 0
+  novel_solutions: 0
+  standard_solutions: 0
+
+---
+# WORKING PRINCIPLES CATALOG
+
+principles:
+
+  # PRINCIPLE 1
+  - principle_id: "WP-001"
+
+    # Function Reference
+    subfunction_id: "F1.1"
+    function_statement: "[Function statement from function structure]"
+
+    # Physical Effect
+    physical_effect:
+      name: "[e.g., Electromagnetic induction]"
+      category: "electrical"  # mechanical, electrical, thermal, fluid, chemical, optical
+      description: "[How the physical effect works]"
+      governing_equations:
+        - "V = -N(dΦ/dt)"
+        - "[Other relevant equations]"
+      pahl_beitz_reference: "[Catalog reference, e.g., Table 3.1, Effect 12]"
+
+    # Effect Carrier
+    effect_carrier:
+      description: "[e.g., Permanent magnet rotor + wound stator]"
+      components:
+        - component_id: "C001"
+          name: "[Component name]"
+          role: "[Role in realizing the effect]"
+        - component_id: "C002"
+          name: "[Component name]"
+          role: "[Role in realizing the effect]"
+      geometry: "[Key geometric features]"
+
+    # Form Design Features
+    form_design_features:
+      - feature: "[e.g., Skewed rotor poles]"
+        purpose: "[e.g., Reduce cogging torque]"
+        trade_off: "[e.g., Slightly reduced peak torque]"
+
+      - feature: "[e.g., Laminated stator core]"
+        purpose: "[e.g., Reduce eddy current losses]"
+        trade_off: "[e.g., Increased manufacturing complexity]"
+
+    # Working Principle Name
+    working_principle_name: "[e.g., Brushless DC motor with Hall sensors]"
+
+    # Alternatives Analysis
+    alternatives_considered:
+      - principle: "[e.g., Brushed DC motor]"
+        physical_effect: "[e.g., Electromagnetic induction with mechanical commutation]"
+        why_not_chosen: "[e.g., Lower reliability, brush wear, EMI]"
+        would_require: "[e.g., Regular brush replacement]"
+
+      - principle: "[e.g., Stepper motor]"
+        physical_effect: "[e.g., Variable reluctance]"
+        why_not_chosen: "[e.g., Lower efficiency at high speeds, resonance issues]"
+        would_require: "[e.g., Different control electronics]"
+
+    # Design Catalog Reference
+    design_catalog_reference:
+      catalog: "pahl_beitz"  # pahl_beitz, VDI, custom
+      catalog_id: "[Reference ID]"
+      figure_reference: "[Figure/Table number]"
+      page: "[Page number]"
+
+    # Novelty Assessment
+    novelty_assessment:
+      novelty_level: "standard"  # standard, variant, novel
+      innovation_description: "[If variant or novel, describe what's innovative]"
+      patent_indicators: "[Any patent markings or unique features]"
+
+    # Performance Characteristics
+    performance:
+      key_parameters:
+        - parameter: "[e.g., Torque]"
+          value: "[e.g., 2.5 Nm]"
+          derived_from: "[e.g., Motor size and current rating]"
+          confidence: 80  # percentage
+
+      efficiency: "[Estimated efficiency]"
+      operating_range: "[Operating envelope]"
+
+    # Confidence and Validation
+    confidence: 85  # percentage
+    validation_status: "inferred"  # verified, inferred, hypothesized
+    validation_notes: "[Notes on how this was validated or what would be needed]"
+
+  # PRINCIPLE 2
+  - principle_id: "WP-002"
+    subfunction_id: "F1.2"
+    function_statement: "[Function statement]"
+
+    physical_effect:
+      name: "[Effect name]"
+      category: "mechanical"
+      description: ""
+      governing_equations: []
+      pahl_beitz_reference: ""
+
+    effect_carrier:
+      description: ""
+      components: []
+      geometry: ""
+
+    form_design_features: []
+
+    working_principle_name: ""
+
+    alternatives_considered: []
+
+    design_catalog_reference:
+      catalog: ""
+      catalog_id: ""
+      figure_reference: ""
+      page: ""
+
+    novelty_assessment:
+      novelty_level: "standard"
+      innovation_description: ""
+      patent_indicators: ""
+
+    performance:
+      key_parameters: []
+      efficiency: ""
+      operating_range: ""
+
+    confidence: 0
+    validation_status: "hypothesized"
+    validation_notes: ""
+
+  # PRINCIPLE 3 (Template)
+  - principle_id: "WP-003"
+    subfunction_id: ""
+    function_statement: ""
+    physical_effect:
+      name: ""
+      category: ""
+      description: ""
+      governing_equations: []
+      pahl_beitz_reference: ""
+    effect_carrier:
+      description: ""
+      components: []
+      geometry: ""
+    form_design_features: []
+    working_principle_name: ""
+    alternatives_considered: []
+    design_catalog_reference:
+      catalog: ""
+      catalog_id: ""
+      figure_reference: ""
+      page: ""
+    novelty_assessment:
+      novelty_level: ""
+      innovation_description: ""
+      patent_indicators: ""
+    performance:
+      key_parameters: []
+      efficiency: ""
+      operating_range: ""
+    confidence: 0
+    validation_status: ""
+    validation_notes: ""
+
+---
+# NOVEL SOLUTIONS IDENTIFIED
+
+novel_solutions:
+
+  - principle_id: "WP-XXX"
+    working_principle_name: "[Name]"
+    novelty_description: "[What makes this novel]"
+    significance: "transformational"  # marginal, significant, transformational
+    potential_applications:
+      - "[Application 1]"
+      - "[Application 2]"
+    further_study_recommended: true
+    notes: ""
+
+---
+# PHYSICAL EFFECTS QUICK REFERENCE
+
+physical_effects_used:
+
+  mechanical:
+    - name: "[Effect name]"
+      used_in: ["WP-XXX"]
+      notes: ""
+
+  electrical:
+    - name: "Electromagnetic induction"
+      used_in: ["WP-001"]
+      notes: ""
+
+  thermal:
+    - name: ""
+      used_in: []
+      notes: ""
+
+  fluid:
+    - name: ""
+      used_in: []
+      notes: ""
+
+  chemical:
+    - name: ""
+      used_in: []
+      notes: ""
+
+  optical:
+    - name: ""
+      used_in: []
+      notes: ""
+
+---
+# TRADE-OFFS REVEALED
+
+trade_offs:
+
+  - trade_off_id: "TO-001"
+    related_principles: ["WP-001", "WP-002"]
+    trade_off_description: "[What trade-off was made]"
+    option_chosen: "[What was selected]"
+    option_rejected: "[What was not selected]"
+    rationale_inferred: "[Why we think this choice was made]"
+    confidence: 75  # percentage
+    implications_for_replication: "[What this means for indigenous development]"
+
+  - trade_off_id: "TO-002"
+    related_principles: []
+    trade_off_description: ""
+    option_chosen: ""
+    option_rejected: ""
+    rationale_inferred: ""
+    confidence: 0
+    implications_for_replication: ""
+
+---
+# CROSS-REFERENCES
+
+cross_references:
+
+  to_components:
+    - principle_id: "WP-001"
+      component_ids: ["C001", "C002"]
+      airtable_record: "[Record ID]"
+
+  to_functions:
+    - principle_id: "WP-001"
+      function_id: "F1.1"
+      function_structure_ref: "[URI]"
+
+  to_similar_principles:
+    - principle_id: "WP-001"
+      similar_to:
+        - project_id: "[Previous project]"
+          principle_id: "[Similar principle ID]"
+          similarity: "[How they're similar]"
+
+---
+# VALIDATION REQUIREMENTS
+
+validation_requirements:
+
+  - principle_id: "WP-001"
+    hypothesis: "[What needs to be verified]"
+    test_method: "[How to verify]"
+    equipment_needed: "[Required equipment]"
+    status: "pending"  # verified, pending, not_possible
+    result: ""
+    notes: ""
+
+  - principle_id: "WP-002"
+    hypothesis: ""
+    test_method: ""
+    equipment_needed: ""
+    status: "pending"
+    result: ""
+    notes: ""

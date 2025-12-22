@@ -1,0 +1,985 @@
+# Reverse Engineering Agent System - Handoff Schemas
+# Inter-agent communication protocols and state transitions
+
+---
+# =============================================================================
+# HANDOFF MESSAGE ENVELOPE
+# Standard wrapper for all inter-agent communications
+# =============================================================================
+
+handoff_envelope:
+  description: "Standard envelope for all handoff messages"
+
+  header:
+    handoff_id:
+      type: string
+      format: uuid
+      required: true
+      description: "Unique identifier for this handoff"
+
+    project_id:
+      type: string
+      required: true
+      description: "Project this handoff belongs to"
+
+    timestamp:
+      type: datetime
+      required: true
+      description: "When handoff was initiated"
+
+    from_agent:
+      type: enum
+      required: true
+      values:
+        - orchestrator
+        - diagnostician
+        - modeler
+        - interventionist
+        - reflector
+      description: "Sending agent"
+
+    to_agent:
+      type: enum
+      required: true
+      values:
+        - orchestrator
+        - diagnostician
+        - modeler
+        - interventionist
+        - reflector
+      description: "Receiving agent"
+
+    handoff_type:
+      type: string
+      required: true
+      description: "Type of handoff message"
+
+    priority:
+      type: enum
+      required: false
+      values:
+        - critical
+        - high
+        - normal
+        - low
+      default: normal
+
+    correlation_id:
+      type: string
+      required: false
+      description: "Links to previous related handoff"
+
+  payload:
+    type: object
+    required: true
+    description: "Handoff-specific data (see individual schemas)"
+
+  metadata:
+    state_before:
+      type: string
+      required: true
+      description: "System state before handoff"
+
+    state_after:
+      type: string
+      required: true
+      description: "Expected system state after handoff"
+
+    timeout:
+      type: number
+      unit: hours
+      required: false
+      description: "Maximum time for response"
+
+    retry_count:
+      type: number
+      required: false
+      default: 0
+
+---
+# =============================================================================
+# ORCHESTRATOR -> DIAGNOSTICIAN HANDOFFS
+# =============================================================================
+
+diagnosis_request:
+  description: "Orchestrator requests Diagnostician to document system"
+  handoff_type: "DIAGNOSIS_REQUEST"
+  from: orchestrator
+  to: diagnostician
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    system_identification:
+      designation:
+        type: string
+        required: true
+      origin_country:
+        type: string
+        required: true
+      specimen_type:
+        type: enum
+        values: [physical, documentation, intelligence, captured, destroyed]
+
+    access_parameters:
+      location:
+        type: string
+        required: true
+      access_duration:
+        type: number
+        unit: hours
+      handling_restrictions:
+        type: list
+        items: string
+      destructive_allowed:
+        type: boolean
+        default: false
+
+    documentation_level:
+      type: enum
+      required: true
+      values: [external, subsystem, component]
+
+    focus_areas:
+      type: list
+      items: string
+      required: false
+
+    existing_documentation:
+      type: list
+      items: uri
+      required: false
+
+  expected_response:
+    type: enum
+    values:
+      - DIAGNOSIS_COMPLETE
+      - DIAGNOSIS_BLOCKED
+      - VERIFICATION_RESPONSE
+
+---
+verification_request:
+  description: "Modeler requests physical verification from Diagnostician"
+  handoff_type: "VERIFICATION_REQUEST"
+  from: modeler
+  to: diagnostician
+  via: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    requesting_agent:
+      type: string
+      value: modeler
+
+    hypotheses:
+      type: list
+      required: true
+      items:
+        hypothesis_id:
+          type: string
+          required: true
+        hypothesis:
+          type: string
+          required: true
+          description: "Model prediction to verify"
+        component:
+          type: string
+          required: true
+          description: "Component to examine"
+        test_method:
+          type: string
+          required: true
+          description: "Suggested verification approach"
+        expected_result:
+          type: string
+          required: false
+        criticality:
+          type: enum
+          values: [blocking, important, nice_to_have]
+          default: important
+
+  expected_response: "VERIFICATION_RESPONSE"
+
+---
+diagnosis_complete:
+  description: "Diagnostician reports documentation complete"
+  handoff_type: "DIAGNOSIS_COMPLETE"
+  from: diagnostician
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    status:
+      type: enum
+      required: true
+      values:
+        - complete
+        - complete_with_gaps
+        - blocked
+
+    documentation_completeness:
+      type: number
+      unit: percentage
+      required: true
+
+    diagnosis_report:
+      type: uri
+      required: true
+      description: "Location of full report"
+
+    component_database:
+      type: uri
+      required: true
+      description: "Airtable reference"
+
+    gaps_detected:
+      type: list
+      items:
+        gap: string
+        severity: enum
+        values: [critical, high, medium, low]
+        resolvable: boolean
+
+    ready_for_modeling:
+      type: boolean
+      required: true
+
+    blockers:
+      type: list
+      items: string
+      required: false
+
+---
+diagnosis_blocked:
+  description: "Diagnostician cannot proceed"
+  handoff_type: "DIAGNOSIS_BLOCKED"
+  from: diagnostician
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    blocking_reason:
+      type: string
+      required: true
+
+    blocking_type:
+      type: enum
+      required: true
+      values:
+        - access_denied
+        - equipment_unavailable
+        - safety_concern
+        - classification_issue
+        - specimen_unavailable
+
+    partial_results:
+      type: uri
+      required: false
+      description: "Any partial documentation completed"
+
+    resolution_options:
+      type: list
+      items:
+        option: string
+        feasibility: enum
+        values: [high, medium, low]
+        timeline: string
+
+    escalation_required:
+      type: boolean
+      default: false
+
+---
+verification_response:
+  description: "Diagnostician returns verification results"
+  handoff_type: "VERIFICATION_RESPONSE"
+  from: diagnostician
+  to: orchestrator
+  forward_to: modeler
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    original_request_id:
+      type: string
+      required: true
+      description: "Links to original VERIFICATION_REQUEST"
+
+    results:
+      type: list
+      required: true
+      items:
+        hypothesis_id:
+          type: string
+          required: true
+        result:
+          type: enum
+          required: true
+          values:
+            - verified
+            - contradicted
+            - inconclusive
+        evidence:
+          type: string
+          required: true
+        confidence:
+          type: number
+          unit: percentage
+        new_observations:
+          type: list
+          items: string
+        images:
+          type: list
+          items: uri
+
+    additional_findings:
+      type: list
+      items:
+        finding: string
+        relevance: string
+
+---
+# =============================================================================
+# ORCHESTRATOR -> MODELER HANDOFFS
+# =============================================================================
+
+modeling_request:
+  description: "Orchestrator requests Modeler to reconstruct function structure"
+  handoff_type: "MODELING_REQUEST"
+  from: orchestrator
+  to: modeler
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    diagnosis_report:
+      type: uri
+      required: true
+      description: "Diagnostician output"
+
+    component_database:
+      type: uri
+      required: true
+      description: "Airtable component catalog"
+
+    documentation_completeness:
+      type: number
+      unit: percentage
+      required: true
+
+    focus_subsystems:
+      type: list
+      items: string
+      required: false
+
+    verification_data:
+      type: object
+      required: false
+      description: "If returning from verification loop"
+      properties:
+        verification_id: string
+        results: list
+
+    analysis_objective:
+      primary_goal:
+        type: enum
+        values: [replicate, counter, insert_tech, understand]
+      target_systems:
+        type: list
+        items: string
+
+  expected_response:
+    type: enum
+    values:
+      - MODELING_COMPLETE
+      - VERIFICATION_NEEDED
+      - MODELING_BLOCKED
+
+---
+modeling_complete:
+  description: "Modeler reports function structure complete"
+  handoff_type: "MODELING_COMPLETE"
+  from: modeler
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    status:
+      type: enum
+      required: true
+      values:
+        - complete
+        - complete_with_uncertainties
+
+    function_structure:
+      type: uri
+      required: true
+      description: "Function structure document"
+
+    working_principles:
+      type: uri
+      required: true
+      description: "Working principle catalog"
+
+    design_paradigm:
+      stated_goal:
+        type: string
+        required: true
+      actual_goal:
+        type: string
+        required: true
+      design_philosophy:
+        type: string
+        required: true
+      key_constraints:
+        type: list
+        items: string
+
+    validation_score:
+      type: number
+      unit: percentage
+      required: true
+
+    models_validated:
+      type: list
+      items: string
+
+    uncertainties:
+      type: list
+      items:
+        area: string
+        uncertainty: string
+        impact: string
+        confidence: number
+
+    ready_for_intervention:
+      type: boolean
+      required: true
+
+---
+verification_needed:
+  description: "Modeler requests physical verification"
+  handoff_type: "VERIFICATION_NEEDED"
+  from: modeler
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    current_progress:
+      functions_mapped:
+        type: number
+        unit: percentage
+      principles_identified:
+        type: number
+        unit: percentage
+
+    verification_requests:
+      type: list
+      required: true
+      items:
+        hypothesis_id:
+          type: string
+        hypothesis:
+          type: string
+        component:
+          type: string
+        test_method:
+          type: string
+        criticality:
+          type: enum
+          values: [blocking, important, nice_to_have]
+        impact_if_wrong:
+          type: string
+
+    partial_models:
+      type: uri
+      required: false
+      description: "Work in progress"
+
+    can_continue_parallel:
+      type: boolean
+      default: false
+      description: "Whether modeling can continue on other areas"
+
+---
+# =============================================================================
+# ORCHESTRATOR -> INTERVENTIONIST HANDOFFS
+# =============================================================================
+
+intervention_request:
+  description: "Orchestrator requests knowledge extraction and recommendations"
+  handoff_type: "INTERVENTION_REQUEST"
+  from: orchestrator
+  to: interventionist
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    function_structure:
+      type: uri
+      required: true
+
+    working_principles:
+      type: uri
+      required: true
+
+    design_paradigm:
+      stated_goal:
+        type: string
+      actual_goal:
+        type: string
+      design_philosophy:
+        type: string
+      key_constraints:
+        type: list
+        items: string
+
+    analysis_objective:
+      primary_goal:
+        type: enum
+        required: true
+        values: [replicate, counter, insert_tech, understand]
+      target_systems:
+        type: list
+        items: string
+      constraints:
+        budget: number
+        timeline: string
+        manufacturing_capability: list
+
+    strategies_to_evaluate:
+      type: list
+      items:
+        type: enum
+        values: [replication, counter_system, technology_insertion]
+      required: false
+      description: "Default: all applicable based on primary_goal"
+
+  expected_response:
+    type: enum
+    values:
+      - INTERVENTION_COMPLETE
+      - MODEL_REFINEMENT_NEEDED
+
+---
+intervention_complete:
+  description: "Interventionist reports recommendations ready"
+  handoff_type: "INTERVENTION_COMPLETE"
+  from: interventionist
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    status:
+      type: enum
+      required: true
+      values:
+        - complete
+        - partial
+
+    recommendations_report:
+      type: uri
+      required: true
+
+    executive_summary:
+      primary_recommendation:
+        type: string
+        required: true
+      confidence:
+        type: number
+        unit: percentage
+      expected_impact:
+        type: string
+
+    strategies_evaluated:
+      type: list
+      items:
+        strategy: string
+        feasibility: number
+        recommended: boolean
+
+    high_leverage_findings:
+      type: list
+      items:
+        finding: string
+        leverage_level: string
+        action: string
+
+    ready_for_reflection:
+      type: boolean
+      required: true
+
+---
+model_refinement_needed:
+  description: "Interventionist requests model clarification"
+  handoff_type: "MODEL_REFINEMENT_NEEDED"
+  from: interventionist
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    refinements_needed:
+      type: list
+      required: true
+      items:
+        area:
+          type: string
+          required: true
+        current_understanding:
+          type: string
+          required: true
+        question:
+          type: string
+          required: true
+        impact_on_recommendations:
+          type: string
+          required: true
+        priority:
+          type: enum
+          values: [blocking, important, nice_to_have]
+
+    partial_recommendations:
+      type: uri
+      required: false
+
+    can_continue_parallel:
+      type: boolean
+      default: false
+
+---
+# =============================================================================
+# ORCHESTRATOR -> REFLECTOR HANDOFFS
+# =============================================================================
+
+reflection_request:
+  description: "Orchestrator requests learning capture"
+  handoff_type: "REFLECTION_REQUEST"
+  from: orchestrator
+  to: reflector
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    all_artifacts:
+      diagnosis_report:
+        type: uri
+        required: true
+      modeling_report:
+        type: uri
+        required: true
+      intervention_report:
+        type: uri
+        required: true
+      function_structure:
+        type: uri
+        required: true
+      working_principles:
+        type: uri
+        required: true
+
+    timeline:
+      planned:
+        start_date: datetime
+        end_date: datetime
+        phase_durations: object
+      actual:
+        start_date: datetime
+        end_date: datetime
+        phase_durations: object
+
+    outcomes:
+      planned: list
+      actual: list
+
+  expected_response: "REFLECTION_COMPLETE"
+
+---
+reflection_complete:
+  description: "Reflector reports learning captured"
+  handoff_type: "REFLECTION_COMPLETE"
+  from: reflector
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    status:
+      type: enum
+      required: true
+      values:
+        - complete
+        - partial
+
+    reflection_report:
+      type: uri
+      required: true
+
+    lessons_learned:
+      type: list
+      items:
+        lesson: string
+        category: enum
+        values: [paradigm, process, capability, tool, technical]
+        action: string
+
+    paradigm_insights:
+      type: list
+      items:
+        insight: string
+        impact: string
+
+    process_improvements:
+      type: list
+      items:
+        improvement: string
+        priority: enum
+        values: [high, medium, low]
+
+    knowledge_persisted:
+      airtable_updates: number
+      github_updates: number
+      memory_updates: number
+      obsidian_updates: number
+
+    new_cycle_recommendation:
+      recommended:
+        type: boolean
+        required: true
+      rationale:
+        type: string
+      focus_areas:
+        type: list
+        items: string
+
+    ready_for_closure:
+      type: boolean
+      required: true
+
+---
+new_cycle_request:
+  description: "Reflector recommends new analysis cycle"
+  handoff_type: "NEW_CYCLE_RECOMMENDED"
+  from: reflector
+  to: orchestrator
+
+  payload:
+    project_id:
+      type: string
+      required: true
+
+    rationale:
+      type: string
+      required: true
+
+    focus_areas:
+      type: list
+      required: true
+      items: string
+
+    expected_duration:
+      type: string
+      required: true
+
+    resource_requirements:
+      personnel: list
+      equipment: list
+      access: list
+
+    success_criteria:
+      type: list
+      items: string
+
+    priority:
+      type: enum
+      values: [critical, high, medium, low]
+      default: medium
+
+---
+# =============================================================================
+# STATE TRANSITION RECORDS
+# Logged for each state change
+# =============================================================================
+
+state_transition_record:
+  description: "Record of state machine transition"
+
+  transition_id:
+    type: string
+    format: uuid
+    required: true
+
+  project_id:
+    type: string
+    required: true
+
+  timestamp:
+    type: datetime
+    required: true
+
+  from_state:
+    type: enum
+    required: true
+    values:
+      - INIT
+      - DIAGNOSIS
+      - MODELING
+      - INTERVENTION
+      - REFLECTION
+      - COMPLETE
+      - ERROR
+
+  to_state:
+    type: enum
+    required: true
+    values:
+      - INIT
+      - DIAGNOSIS
+      - MODELING
+      - INTERVENTION
+      - REFLECTION
+      - COMPLETE
+      - ERROR
+
+  trigger:
+    type: string
+    required: true
+    description: "What caused the transition"
+
+  handoff_id:
+    type: string
+    required: false
+    description: "Associated handoff message"
+
+  duration_in_previous_state:
+    type: number
+    unit: hours
+    required: true
+
+  notes:
+    type: string
+    required: false
+
+---
+# =============================================================================
+# AIRTABLE HANDOFF LOG TABLE SCHEMA
+# =============================================================================
+
+airtable_handoff_log:
+  description: "Schema for Agent Handoffs table in Airtable"
+
+  table_name: "Agent Handoffs"
+
+  fields:
+    id:
+      type: auto_number
+      primary: true
+
+    project:
+      type: link
+      linked_table: Projects
+      required: true
+
+    handoff_id:
+      type: single_line_text
+      required: true
+
+    from_agent:
+      type: single_select
+      options:
+        - orchestrator
+        - diagnostician
+        - modeler
+        - interventionist
+        - reflector
+
+    to_agent:
+      type: single_select
+      options:
+        - orchestrator
+        - diagnostician
+        - modeler
+        - interventionist
+        - reflector
+
+    handoff_type:
+      type: single_line_text
+
+    timestamp:
+      type: datetime
+
+    state_before:
+      type: single_select
+      options:
+        - INIT
+        - DIAGNOSIS
+        - MODELING
+        - INTERVENTION
+        - REFLECTION
+        - COMPLETE
+        - ERROR
+
+    state_after:
+      type: single_select
+      options:
+        - INIT
+        - DIAGNOSIS
+        - MODELING
+        - INTERVENTION
+        - REFLECTION
+        - COMPLETE
+        - ERROR
+
+    payload_summary:
+      type: long_text
+
+    status:
+      type: single_select
+      options:
+        - pending
+        - acknowledged
+        - processing
+        - completed
+        - failed
+        - timeout
+
+    response_handoff:
+      type: link
+      linked_table: Agent Handoffs
+      description: "Link to response handoff"
+
+    duration:
+      type: number
+      unit: hours
