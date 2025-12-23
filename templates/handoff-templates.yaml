@@ -1,0 +1,707 @@
+# Handoff Message Templates
+# Pre-filled templates for all handoff types in the RE Agent System
+# Version: 1.0
+
+version: "1.0"
+description: "Ready-to-use handoff message templates with default values and validation"
+
+imports:
+  - "../schemas/base-types.yaml"
+  - "../schemas/handoff-schema.yaml"
+  - "../schemas/error-schema.yaml"
+
+# =============================================================================
+# ORCHESTRATOR → DIAGNOSTICIAN TEMPLATES
+# =============================================================================
+
+orchestrator_to_diagnostician:
+
+  diagnosis_request:
+    template_id: "ORCH-DIAG-001"
+    description: "Request initial diagnosis of a system"
+    handoff_type: "DIAGNOSIS_REQUEST"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "diagnostician"
+      handoff_type: "DIAGNOSIS_REQUEST"
+      priority: "normal"  # Options: critical, high, normal, low
+      correlation_id: "{project_correlation_id}"
+      timeout_seconds: 604800  # 7 days default
+
+    payload:
+      project_id: "{project_id}"
+      documentation_request:
+        specimen_access:
+          location: ""  # REQUIRED: Physical location
+          access_duration: 40  # Default: 40 hours
+          handling_restrictions: []
+          destructive_allowed: false
+        documentation_level: "subsystem"  # Options: external, subsystem, component
+        focus_areas: []  # Optional: specific subsystems
+        existing_documentation: []
+        verification_requests: []
+
+      analysis_objective:
+        primary_goal: "understand"  # Options: replicate, counter, insert_tech, understand
+        target_designation: ""
+        origin_country: ""
+        priority: "medium"
+
+    validation:
+      required_fields:
+        - "payload.project_id"
+        - "payload.documentation_request.specimen_access.location"
+
+      field_rules:
+        documentation_level:
+          type: "enum"
+          values: ["external", "subsystem", "component"]
+        access_duration:
+          type: "number"
+          minimum: 1
+          maximum: 720
+
+  verification_request:
+    template_id: "ORCH-DIAG-002"
+    description: "Request physical verification from Diagnostician"
+    handoff_type: "VERIFICATION_REQUEST"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "diagnostician"
+      handoff_type: "VERIFICATION_REQUEST"
+      priority: "high"
+      correlation_id: "{project_correlation_id}"
+      references:
+        original_diagnosis_id: ""  # Link to original diagnosis
+      timeout_seconds: 172800  # 48 hours default
+
+    payload:
+      project_id: "{project_id}"
+      verification_needed:
+        - hypothesis_id: ""
+          hypothesis: ""
+          test_method: ""
+          physical_access_required: ""
+          criticality: "important"  # Options: blocking, important, nice_to_have
+
+# =============================================================================
+# DIAGNOSTICIAN → ORCHESTRATOR TEMPLATES
+# =============================================================================
+
+diagnostician_to_orchestrator:
+
+  diagnosis_complete:
+    template_id: "DIAG-ORCH-001"
+    description: "Report diagnosis completion"
+    handoff_type: "DIAGNOSIS_COMPLETE"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "diagnostician"
+      to_agent: "orchestrator"
+      handoff_type: "DIAGNOSIS_COMPLETE"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+      references:
+        original_request_id: ""  # Link to triggering request
+
+    payload:
+      project_id: "{project_id}"
+      diagnosis_report:
+        artifact_uri: ""  # GitHub URI to report
+        version: "1.0"
+        checksum: ""  # SHA-256
+
+      metrics:
+        documentation_completeness: 0  # Percentage 0-100
+        components_cataloged: 0
+        patterns_identified: 0
+        gaps_remaining: 0
+
+      quality_gates:
+        documentation_completeness_met: false
+        critical_subsystems_documented: false
+        component_catalog_populated: false
+        pattern_analysis_complete: false
+
+      handoff_ready:
+        ready_for_modeling: false
+        blockers: []
+        confidence_level: 0
+        priority_focus_areas: []
+
+  diagnosis_partial:
+    template_id: "DIAG-ORCH-002"
+    description: "Report partial diagnosis with blockers"
+    handoff_type: "DIAGNOSIS_PARTIAL"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "diagnostician"
+      to_agent: "orchestrator"
+      handoff_type: "DIAGNOSIS_PARTIAL"
+      priority: "high"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      partial_report:
+        artifact_uri: ""
+        completeness: 0
+
+      blockers:
+        - blocker_type: ""  # access_denied, equipment_unavailable, time_constraint
+          description: ""
+          resolution_options: []
+          blocking_progress: true
+
+      can_continue: false
+      requires_escalation: false
+
+# =============================================================================
+# ORCHESTRATOR → MODELER TEMPLATES
+# =============================================================================
+
+orchestrator_to_modeler:
+
+  modeling_request:
+    template_id: "ORCH-MOD-001"
+    description: "Request function structure modeling"
+    handoff_type: "MODELING_REQUEST"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "modeler"
+      handoff_type: "MODELING_REQUEST"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+      timeout_seconds: 1209600  # 14 days default
+
+    payload:
+      project_id: "{project_id}"
+      diagnosis_report: ""  # URI to diagnosis report
+      component_database: ""  # Airtable reference
+      focus_subsystems: []
+      analysis_objective:
+        primary_goal: "understand"
+        target_systems: []
+
+  model_refinement_request:
+    template_id: "ORCH-MOD-002"
+    description: "Request model refinement based on intervention feedback"
+    handoff_type: "MODEL_REFINEMENT"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "modeler"
+      handoff_type: "MODEL_REFINEMENT"
+      priority: "high"
+      correlation_id: "{project_correlation_id}"
+      references:
+        original_model_id: ""
+
+    payload:
+      project_id: "{project_id}"
+      existing_model: ""  # URI to current model
+      refinements_needed:
+        - area: ""
+          current_understanding: ""
+          question: ""
+          impact: ""
+          priority: "important"
+
+# =============================================================================
+# MODELER → ORCHESTRATOR TEMPLATES
+# =============================================================================
+
+modeler_to_orchestrator:
+
+  modeling_complete:
+    template_id: "MOD-ORCH-001"
+    description: "Report modeling completion"
+    handoff_type: "MODELING_COMPLETE"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "modeler"
+      to_agent: "orchestrator"
+      handoff_type: "MODELING_COMPLETE"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      modeling_report:
+        artifact_uri: ""
+        version: "1.0"
+        checksum: ""
+
+      function_structure:
+        diagram_uri: ""
+        total_functions: 0
+        depth: 0
+
+      working_principles:
+        catalog_uri: ""
+        total_principles: 0
+        novel_solutions: 0
+
+      metrics:
+        components_mapped_pct: 0
+        principles_identified_pct: 0
+        validation_score: 0
+
+      design_paradigm:
+        summary: ""
+        confidence: 0
+
+      handoff_ready:
+        ready_for_intervention: false
+        uncertainties: []
+
+  verification_needed:
+    template_id: "MOD-ORCH-002"
+    description: "Request physical verification via Orchestrator"
+    handoff_type: "VERIFICATION_NEEDED"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "modeler"
+      to_agent: "orchestrator"
+      handoff_type: "VERIFICATION_NEEDED"
+      priority: "high"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      hypotheses:
+        - hypothesis_id: ""
+          hypothesis: ""
+          component: ""
+          test_method: ""
+          expected_result: ""
+          criticality: "important"
+
+      batch_number: 1
+      total_batches: 1
+      blocking_model_completion: false
+
+# =============================================================================
+# ORCHESTRATOR → INTERVENTIONIST TEMPLATES
+# =============================================================================
+
+orchestrator_to_interventionist:
+
+  intervention_request:
+    template_id: "ORCH-INT-001"
+    description: "Request intervention analysis"
+    handoff_type: "INTERVENTION_REQUEST"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "interventionist"
+      handoff_type: "INTERVENTION_REQUEST"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+      timeout_seconds: 604800  # 7 days default
+
+    payload:
+      project_id: "{project_id}"
+      function_structure: ""  # URI
+      working_principles: ""  # URI
+      design_paradigm: {}
+
+      analysis_objective:
+        primary_goal: "understand"
+        target_systems: []
+        constraints:
+          budget: 0
+          timeline: ""
+          personnel: []
+          manufacturing_capability: []
+
+# =============================================================================
+# INTERVENTIONIST → ORCHESTRATOR TEMPLATES
+# =============================================================================
+
+interventionist_to_orchestrator:
+
+  intervention_complete:
+    template_id: "INT-ORCH-001"
+    description: "Report intervention analysis completion"
+    handoff_type: "INTERVENTION_COMPLETE"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "interventionist"
+      to_agent: "orchestrator"
+      handoff_type: "INTERVENTION_COMPLETE"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      intervention_report:
+        artifact_uri: ""
+        version: "1.0"
+        checksum: ""
+
+      executive_summary:
+        primary_recommendation: ""
+        confidence_level: 0
+        expected_impact: ""
+        key_risks: []
+        immediate_actions: []
+
+      strategies_evaluated:
+        replication: false
+        counter_system: false
+        technology_insertion: false
+
+      recommendations_count: 0
+      feasibility_overall: 0
+
+      handoff_ready:
+        ready_for_reflection: true
+        open_questions: []
+
+# =============================================================================
+# ORCHESTRATOR → REFLECTOR TEMPLATES
+# =============================================================================
+
+orchestrator_to_reflector:
+
+  reflection_request:
+    template_id: "ORCH-REF-001"
+    description: "Request project reflection"
+    handoff_type: "REFLECTION_REQUEST"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "orchestrator"
+      to_agent: "reflector"
+      handoff_type: "REFLECTION_REQUEST"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+      timeout_seconds: 259200  # 3 days default
+
+    payload:
+      project_id: "{project_id}"
+      all_artifacts:
+        diagnosis_report: ""
+        modeling_report: ""
+        intervention_report: ""
+        function_structure: ""
+        working_principles: ""
+
+      timeline:
+        planned:
+          start_date: ""
+          end_date: ""
+          phase_durations: {}
+        actual:
+          start_date: ""
+          end_date: ""
+          phase_durations: {}
+
+      outcomes:
+        planned: []
+        actual: []
+        deviations: []
+
+      analysis_objective: {}
+      team_composition: []
+
+# =============================================================================
+# REFLECTOR → ORCHESTRATOR TEMPLATES
+# =============================================================================
+
+reflector_to_orchestrator:
+
+  reflection_complete:
+    template_id: "REF-ORCH-001"
+    description: "Report reflection completion"
+    handoff_type: "REFLECTION_COMPLETE"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "reflector"
+      to_agent: "orchestrator"
+      handoff_type: "REFLECTION_COMPLETE"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      reflection_report:
+        artifact_uri: ""
+        version: "1.0"
+        checksum: ""
+
+      lessons_captured: 0
+      process_improvements: 0
+      paradigm_insights: 0
+
+      knowledge_persisted:
+        airtable: false
+        github: false
+        memory: false
+        obsidian: false
+
+      project_closure:
+        ready_for_closure: false
+        outstanding_items: []
+        final_status: "complete"  # complete, partial, deferred
+        success_rating: 0
+
+      new_cycle:
+        recommended: false
+        rationale: ""
+        focus_areas: []
+
+  new_cycle_recommended:
+    template_id: "REF-ORCH-002"
+    description: "Recommend new analysis cycle"
+    handoff_type: "NEW_CYCLE_RECOMMENDED"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: "reflector"
+      to_agent: "orchestrator"
+      handoff_type: "NEW_CYCLE_RECOMMENDED"
+      priority: "normal"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      rationale: ""
+      focus_areas: []
+      expected_duration: ""
+      resource_requirements: {}
+      success_criteria: []
+
+# =============================================================================
+# ACK/NACK RESPONSE TEMPLATES
+# =============================================================================
+
+response_templates:
+
+  ack:
+    template_id: "RESP-ACK-001"
+    description: "Acknowledge receipt of handoff"
+    response_type: "ACK"
+
+    envelope:
+      response_id: "{auto_generate_uuid}"
+      original_handoff_id: ""  # REQUIRED
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: ""
+      response_type: "ACK"
+
+    payload:
+      acknowledged: true
+      estimated_completion: ""
+      queue_position: 0
+
+  nack_invalid:
+    template_id: "RESP-NACK-001"
+    description: "Reject invalid handoff"
+    response_type: "NACK_INVALID"
+
+    envelope:
+      response_id: "{auto_generate_uuid}"
+      original_handoff_id: ""
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: ""
+      response_type: "NACK_INVALID"
+
+    payload:
+      validation_errors:
+        - field: ""
+          error_code: ""
+          error_message: ""
+
+      corrective_action: ""
+
+  nack_busy:
+    template_id: "RESP-NACK-002"
+    description: "Reject due to capacity"
+    response_type: "NACK_BUSY"
+
+    envelope:
+      response_id: "{auto_generate_uuid}"
+      original_handoff_id: ""
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: ""
+      response_type: "NACK_BUSY"
+
+    payload:
+      current_workload: 0
+      estimated_availability: ""
+      can_queue: true
+      queue_position: 0
+
+  complete:
+    template_id: "RESP-COMPLETE-001"
+    description: "Report successful completion"
+    response_type: "COMPLETE"
+
+    envelope:
+      response_id: "{auto_generate_uuid}"
+      original_handoff_id: ""
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: ""
+      response_type: "COMPLETE"
+      processing_duration_ms: 0
+
+    payload:
+      result_summary: ""
+      artifacts_created: []
+      metrics: {}
+      next_action: ""
+
+  error:
+    template_id: "RESP-ERROR-001"
+    description: "Report processing error"
+    response_type: "ERROR"
+
+    envelope:
+      response_id: "{auto_generate_uuid}"
+      original_handoff_id: ""
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: ""
+      response_type: "ERROR"
+
+    payload:
+      error_code: ""
+      error_name: ""
+      error_message: ""
+      category: ""
+      severity: ""
+      recoverable: false
+      recovery_options: []
+      partial_results: {}
+
+# =============================================================================
+# ESCALATION TEMPLATES
+# =============================================================================
+
+escalation_templates:
+
+  escalate_to_human:
+    template_id: "ESC-001"
+    description: "Escalate to human operator"
+    handoff_type: "ESCALATION"
+
+    envelope:
+      handoff_id: "{auto_generate_uuid}"
+      timestamp: "{current_timestamp}"
+      from_agent: ""
+      to_agent: "human_operator"
+      handoff_type: "ESCALATION"
+      priority: "critical"
+      correlation_id: "{project_correlation_id}"
+
+    payload:
+      project_id: "{project_id}"
+      escalation_reason: ""
+      severity: "error"  # warning, error, fatal
+
+      context:
+        current_state: ""
+        iteration: 0
+        last_successful_operation: ""
+        error_details: {}
+
+      options:
+        - option: ""
+          description: ""
+          risk: ""
+          recommended: false
+
+      checkpoint_id: ""  # For recovery
+      time_sensitive: false
+      response_required_by: ""
+
+# =============================================================================
+# TEMPLATE USAGE EXAMPLES
+# =============================================================================
+
+usage_examples:
+
+  create_diagnosis_request:
+    description: "Example: Create a diagnosis request for a new project"
+    template: "orchestrator_to_diagnostician.diagnosis_request"
+
+    filled_example:
+      envelope:
+        handoff_id: "550e8400-e29b-41d4-a716-446655440000"
+        timestamp: "2025-12-23T10:00:00Z"
+        from_agent: "orchestrator"
+        to_agent: "diagnostician"
+        handoff_type: "DIAGNOSIS_REQUEST"
+        priority: "high"
+        correlation_id: "corr-tod-2025-001"
+        timeout_seconds: 604800
+
+      payload:
+        project_id: "TOD-2025-001"
+        documentation_request:
+          specimen_access:
+            location: "Lab B, Building 7"
+            access_duration: 40
+            handling_restrictions: ["no_photography_external", "gloves_required"]
+            destructive_allowed: true
+          documentation_level: "component"
+          focus_areas: ["propulsion", "control_systems", "tether_mechanism"]
+          existing_documentation: []
+          verification_requests: []
+
+        analysis_objective:
+          primary_goal: "understand"
+          target_designation: "Tethered Observation Drone"
+          origin_country: "Vietnam"
+          priority: "high"
+
+  respond_with_ack:
+    description: "Example: Acknowledge a diagnosis request"
+    template: "response_templates.ack"
+
+    filled_example:
+      envelope:
+        response_id: "660e8400-e29b-41d4-a716-446655440001"
+        original_handoff_id: "550e8400-e29b-41d4-a716-446655440000"
+        timestamp: "2025-12-23T10:00:05Z"
+        from_agent: "diagnostician"
+        to_agent: "orchestrator"
+        response_type: "ACK"
+
+      payload:
+        acknowledged: true
+        estimated_completion: "2025-12-30T10:00:00Z"
+        queue_position: 0

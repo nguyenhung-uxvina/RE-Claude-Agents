@@ -57,3 +57,4 @@ venv/
 # Project-specific
 # Classified analysis files (add patterns as needed)
 # /projects/classified/
+setup-airtable.ps1

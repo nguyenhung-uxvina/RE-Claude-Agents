@@ -1,0 +1,427 @@
+# Base Types Schema
+# Unified type definitions for the RE Agent System
+# All agents and schemas should import these common types for consistency
+
+version: "1.0"
+description: "Canonical type definitions shared across all agents and schemas"
+
+# =============================================================================
+# IDENTIFIERS
+# =============================================================================
+
+identifiers:
+  project_id:
+    type: string
+    format: "^[A-Za-z0-9_-]{1,64}$"
+    description: "Unique identifier for a reverse engineering project"
+    examples:
+      - "TOD-2025-001"
+      - "receqh6y4Pzq6OMdt"
+    note: "Replaces legacy 'system_id' - use project_id consistently"
+
+  handoff_id:
+    type: string
+    format: uuid
+    description: "Unique identifier for inter-agent handoff messages"
+
+  artifact_id:
+    type: string
+    format: uuid
+    description: "Unique identifier for generated artifacts (reports, diagrams)"
+
+  correlation_id:
+    type: string
+    format: uuid
+    description: "Traces related operations across agents for debugging"
+
+  component_id:
+    type: string
+    format: "^[A-Z]{2,4}-[0-9]{3,6}$"
+    description: "Component catalog identifier"
+    examples:
+      - "MTR-001"
+      - "ESC-002"
+
+  function_id:
+    type: string
+    format: "^F[0-9]+(\\.[0-9]+)*$"
+    description: "Function hierarchy identifier"
+    examples:
+      - "F1"
+      - "F1.2"
+      - "F1.2.3"
+
+# =============================================================================
+# ENUMERATIONS
+# =============================================================================
+
+enums:
+  agent_id:
+    type: enum
+    values:
+      - orchestrator
+      - diagnostician
+      - modeler
+      - interventionist
+      - reflector
+    description: "Valid agent identifiers in the system"
+
+  state_id:
+    type: enum
+    values:
+      - INIT
+      - DIAGNOSIS
+      - MODELING
+      - INTERVENTION
+      - REFLECTION
+      - COMPLETE
+      - ERROR
+      - ESCALATED
+      - PAUSED
+    description: "Valid project states in the D-M-I-R state machine"
+
+  priority_level:
+    type: enum
+    values:
+      - critical    # Immediate attention required
+      - high        # Should be addressed soon
+      - medium      # Normal priority
+      - low         # Can be deferred
+    numeric_mapping:
+      critical: 1
+      high: 2
+      medium: 3
+      low: 4
+    description: "Priority levels for tasks, recommendations, and handoffs"
+
+  analysis_objective:
+    type: enum
+    values:
+      - replicate      # Create indigenous equivalent
+      - counter        # Develop countermeasures
+      - insert_tech    # Insert foreign technology into indigenous system
+      - understand     # Pure analysis without application goal
+    description: "Primary goal of the reverse engineering analysis"
+
+  documentation_level:
+    type: enum
+    values:
+      - external    # Level 1: External observation only
+      - subsystem   # Level 2: Subsystem decomposition
+      - component   # Level 3: Individual component analysis
+    description: "Depth of physical documentation"
+
+  component_type:
+    type: enum
+    values:
+      - custom         # Designed specifically for this system
+      - cots           # Commercial off-the-shelf
+      - modified_cots  # COTS with modifications
+      - unknown        # Not yet determined
+    description: "Component origin classification"
+
+  novelty_level:
+    type: enum
+    values:
+      - standard   # Well-known solution from catalogs
+      - variant    # Modified version of standard solution
+      - novel      # New/innovative approach
+    description: "Working principle novelty assessment"
+
+  feasibility_level:
+    type: enum
+    values:
+      - high       # >= 80% confidence in success
+      - medium     # 50-79% confidence
+      - low        # < 50% confidence
+    description: "Feasibility assessment for recommendations"
+
+  handoff_status:
+    type: enum
+    values:
+      - pending       # Sent, awaiting acknowledgment
+      - acknowledged  # Received, processing not started
+      - processing    # Work in progress
+      - completed     # Successfully finished
+      - failed        # Processing failed
+      - timeout       # No response within timeout
+      - cancelled     # Cancelled before completion
+    description: "Status of inter-agent handoff"
+
+# =============================================================================
+# CONFIDENCE AND METRICS
+# =============================================================================
+
+metrics:
+  confidence_level:
+    type: number
+    minimum: 0
+    maximum: 100
+    unit: percentage
+    description: "Confidence in assessment, analysis, or recommendation"
+    semantic_thresholds:
+      high:
+        minimum: 85
+        description: "High confidence - ready for decision-making"
+      medium:
+        minimum: 60
+        maximum: 84
+        description: "Medium confidence - review recommended"
+      low:
+        maximum: 59
+        description: "Low confidence - additional verification needed"
+    usage: "Always use numeric percentage; derive semantic label from thresholds"
+
+  completeness_level:
+    type: number
+    minimum: 0
+    maximum: 100
+    unit: percentage
+    description: "Documentation or analysis completeness"
+    quality_gates:
+      acceptable:
+        minimum: 80
+        description: "Ready for handoff to next phase"
+      marginal:
+        minimum: 60
+        maximum: 79
+        description: "May proceed with documented gaps"
+      insufficient:
+        maximum: 59
+        description: "Cannot proceed - additional work required"
+
+  validation_score:
+    type: number
+    minimum: 0
+    maximum: 100
+    unit: percentage
+    description: "Model validation score from verification"
+    thresholds:
+      validated:
+        minimum: 90
+        description: "Model validated - proceed with high confidence"
+      provisional:
+        minimum: 70
+        maximum: 89
+        description: "Model provisionally accepted - proceed with caveats"
+      unvalidated:
+        maximum: 69
+        description: "Model requires revision or additional verification"
+
+# =============================================================================
+# TIMESTAMPS AND DURATIONS
+# =============================================================================
+
+temporal:
+  timestamp:
+    type: string
+    format: "date-time"  # ISO 8601
+    description: "Point in time, always in UTC"
+    example: "2025-12-22T14:30:00Z"
+
+  duration:
+    type: object
+    properties:
+      value:
+        type: number
+        minimum: 0
+      unit:
+        type: enum
+        values: [seconds, minutes, hours, days]
+    description: "Time duration with explicit unit"
+    examples:
+      - { value: 30, unit: "minutes" }
+      - { value: 7, unit: "days" }
+
+  timeout:
+    type: object
+    properties:
+      duration:
+        $ref: "#/temporal/duration"
+      action_on_timeout:
+        type: enum
+        values: [retry, escalate, fail, continue_with_warning]
+    description: "Timeout specification with action"
+
+# =============================================================================
+# ARTIFACT REFERENCES
+# =============================================================================
+
+artifacts:
+  artifact_reference:
+    type: object
+    required: [artifact_id, type, uri]
+    properties:
+      artifact_id:
+        $ref: "#/identifiers/artifact_id"
+      type:
+        type: enum
+        values:
+          - diagnosis_report
+          - modeling_report
+          - intervention_report
+          - reflection_report
+          - function_diagram
+          - component_catalog
+          - working_principles
+          - recommendation_set
+      uri:
+        type: string
+        format: uri
+        description: "Location of artifact (GitHub, Airtable, local file)"
+      version:
+        type: string
+        format: semver
+        description: "Semantic version of artifact"
+      checksum:
+        type: string
+        format: "^sha256:[a-f0-9]{64}$"
+        description: "SHA-256 checksum for integrity verification"
+      created_by:
+        $ref: "#/enums/agent_id"
+      created_at:
+        $ref: "#/temporal/timestamp"
+      depends_on:
+        type: array
+        items:
+          $ref: "#/identifiers/artifact_id"
+        description: "Artifacts this depends on (for lineage tracking)"
+    description: "Reference to a generated artifact with full metadata"
+
+  artifact_inline:
+    type: object
+    properties:
+      artifact_id:
+        $ref: "#/identifiers/artifact_id"
+      type:
+        type: string
+      data:
+        type: object
+        description: "Inline artifact data (for small artifacts)"
+    description: "Artifact with data embedded rather than referenced"
+
+# =============================================================================
+# PROJECT CONTEXT
+# =============================================================================
+
+context:
+  project_context:
+    type: object
+    required: [project_id, designation, objective, state]
+    properties:
+      project_id:
+        $ref: "#/identifiers/project_id"
+      designation:
+        type: string
+        description: "Human-readable system name"
+      objective:
+        $ref: "#/enums/analysis_objective"
+      state:
+        $ref: "#/enums/state_id"
+      priority:
+        $ref: "#/enums/priority_level"
+      origin_country:
+        type: string
+      classification:
+        type: enum
+        values: [UNCLASSIFIED, INTERNAL, CONFIDENTIAL, SECRET, TOP_SECRET]
+      created_at:
+        $ref: "#/temporal/timestamp"
+      updated_at:
+        $ref: "#/temporal/timestamp"
+      iteration_count:
+        type: integer
+        minimum: 0
+        description: "Number of D-M-I-R iterations completed"
+    description: "Minimal project context passed to all agents"
+
+# =============================================================================
+# COMMON STRUCTURES
+# =============================================================================
+
+structures:
+  gap_item:
+    type: object
+    properties:
+      item:
+        type: string
+        description: "What is missing"
+      importance:
+        $ref: "#/enums/priority_level"
+      resolution:
+        type: string
+        description: "How to resolve this gap"
+      blocking:
+        type: boolean
+        description: "Does this block progress?"
+
+  verification_item:
+    type: object
+    properties:
+      hypothesis_id:
+        type: string
+      hypothesis:
+        type: string
+        description: "Statement to verify"
+      test_method:
+        type: string
+        description: "How to test this hypothesis"
+      expected_result:
+        type: string
+      actual_result:
+        type: string
+      status:
+        type: enum
+        values: [pending, verified, contradicted, inconclusive]
+      confidence:
+        $ref: "#/metrics/confidence_level"
+
+  trade_off:
+    type: object
+    properties:
+      trade_off:
+        type: string
+        description: "Description of the trade-off"
+      option_chosen:
+        type: string
+      option_rejected:
+        type: string
+      rationale_inferred:
+        type: string
+      confidence:
+        $ref: "#/metrics/confidence_level"
+
+  recommendation:
+    type: object
+    properties:
+      recommendation_id:
+        type: string
+      title:
+        type: string
+      description:
+        type: string
+      priority:
+        $ref: "#/enums/priority_level"
+      feasibility:
+        $ref: "#/enums/feasibility_level"
+      effort:
+        type: enum
+        values: [low, medium, high]
+      impact:
+        type: enum
+        values: [low, medium, high]
+      confidence:
+        $ref: "#/metrics/confidence_level"
+
+# =============================================================================
+# USAGE NOTES
+# =============================================================================
+
+usage_notes:
+  - "All schemas should import base-types.yaml using $ref syntax"
+  - "Use project_id consistently - system_id is deprecated"
+  - "Always include confidence as numeric percentage (0-100)"
+  - "Derive semantic labels (high/medium/low) from defined thresholds"
+  - "Use artifact_reference for external files, artifact_inline for small data"
+  - "All timestamps must be UTC in ISO 8601 format"
+  - "Include correlation_id in all handoff messages for tracing"

@@ -1,0 +1,1052 @@
+# MCP Operations Schema
+# Complete operation signatures for MCP servers used by RE Agent System
+# Version: 1.0
+
+version: "1.0"
+description: "MCP server operation signatures with input/output types and error conditions"
+
+# =============================================================================
+# AIRTABLE MCP OPERATIONS
+# =============================================================================
+
+airtable:
+  server_name: "@airtable/mcp-server-airtable"
+  base_id: "appdwnkpyju5Qgj4m"
+
+  operations:
+    # Table Operations
+    list_records:
+      description: "List records from a table with optional filtering"
+      input:
+        table_name:
+          type: string
+          required: true
+          description: "Name of the Airtable table"
+        filter_formula:
+          type: string
+          required: false
+          description: "Airtable formula for filtering"
+        max_records:
+          type: integer
+          required: false
+          default: 100
+        sort:
+          type: array
+          items:
+            field: string
+            direction: "asc|desc"
+          required: false
+      output:
+        records:
+          type: array
+          items:
+            id: string
+            fields: object
+            createdTime: datetime
+      errors:
+        - code: "E100"
+          condition: "Table not found"
+        - code: "E306"
+          condition: "Rate limit exceeded"
+        - code: "E303"
+          condition: "Airtable service unavailable"
+
+    get_record:
+      description: "Get a single record by ID"
+      input:
+        table_name:
+          type: string
+          required: true
+        record_id:
+          type: string
+          required: true
+      output:
+        id: string
+        fields: object
+        createdTime: datetime
+      errors:
+        - code: "E100"
+          condition: "Record not found"
+
+    create_record:
+      description: "Create a new record in a table"
+      input:
+        table_name:
+          type: string
+          required: true
+        fields:
+          type: object
+          required: true
+          description: "Field name-value pairs"
+      output:
+        id: string
+        fields: object
+        createdTime: datetime
+      errors:
+        - code: "E001"
+          condition: "Invalid field schema"
+        - code: "E003"
+          condition: "Invalid field value"
+
+    update_record:
+      description: "Update an existing record"
+      input:
+        table_name:
+          type: string
+          required: true
+        record_id:
+          type: string
+          required: true
+        fields:
+          type: object
+          required: true
+          description: "Fields to update (partial update supported)"
+      output:
+        id: string
+        fields: object
+      errors:
+        - code: "E100"
+          condition: "Record not found"
+        - code: "E103"
+          condition: "Record modified since read (conflict)"
+
+    delete_record:
+      description: "Delete a record"
+      input:
+        table_name:
+          type: string
+          required: true
+        record_id:
+          type: string
+          required: true
+      output:
+        deleted: boolean
+        id: string
+      errors:
+        - code: "E100"
+          condition: "Record not found"
+
+    # Batch Operations
+    create_records:
+      description: "Create multiple records (max 10 per call)"
+      input:
+        table_name:
+          type: string
+          required: true
+        records:
+          type: array
+          max_items: 10
+          items:
+            fields: object
+      output:
+        records:
+          type: array
+          items:
+            id: string
+            fields: object
+      errors:
+        - code: "E001"
+          condition: "Batch contains invalid records"
+
+    update_records:
+      description: "Update multiple records (max 10 per call)"
+      input:
+        table_name:
+          type: string
+          required: true
+        records:
+          type: array
+          max_items: 10
+          items:
+            id: string
+            fields: object
+      output:
+        records:
+          type: array
+          items:
+            id: string
+            fields: object
+      errors:
+        - code: "E100"
+          condition: "One or more records not found"
+
+  rate_limits:
+    requests_per_second: 5
+    requests_per_minute: 50
+    retry_after_header: true
+
+  tables:
+    Projects:
+      fields:
+        - name: project_id
+          type: singleLineText
+          primary: true
+        - name: designation
+          type: singleLineText
+        - name: status
+          type: singleSelect
+          options: [INIT, DIAGNOSIS, MODELING, INTERVENTION, REFLECTION, COMPLETE, ERROR, ESCALATED]
+        - name: objective
+          type: singleSelect
+          options: [replicate, counter, insert_tech, understand]
+        - name: origin_country
+          type: singleLineText
+        - name: created_at
+          type: dateTime
+        - name: updated_at
+          type: dateTime
+        - name: notes
+          type: multilineText
+
+    Components:
+      fields:
+        - name: component_id
+          type: singleLineText
+          primary: true
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: name
+          type: singleLineText
+        - name: type
+          type: singleSelect
+          options: [custom, cots, modified_cots, unknown]
+        - name: parent_id
+          type: link
+          linked_table: Components
+        - name: function_id
+          type: link
+          linked_table: Functions
+        - name: manufacturer
+          type: singleLineText
+        - name: part_number
+          type: singleLineText
+        - name: material
+          type: singleLineText
+        - name: notes
+          type: multilineText
+
+    Functions:
+      fields:
+        - name: function_id
+          type: singleLineText
+          primary: true
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: statement
+          type: singleLineText
+        - name: parent_id
+          type: link
+          linked_table: Functions
+        - name: level
+          type: number
+        - name: essential
+          type: checkbox
+        - name: components
+          type: link
+          linked_table: Components
+
+    Working_Principles:
+      fields:
+        - name: principle_id
+          type: singleLineText
+          primary: true
+        - name: function_id
+          type: link
+          linked_table: Functions
+        - name: name
+          type: singleLineText
+        - name: physical_effect
+          type: singleLineText
+        - name: category
+          type: singleSelect
+          options: [mechanical, electrical, thermal, fluid, chemical, optical]
+        - name: novelty
+          type: singleSelect
+          options: [standard, variant, novel]
+        - name: source_project
+          type: link
+          linked_table: Projects
+
+    Recommendations:
+      fields:
+        - name: recommendation_id
+          type: singleLineText
+          primary: true
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: type
+          type: singleSelect
+          options: [replication, counter_system, technology_insertion]
+        - name: summary
+          type: singleLineText
+        - name: feasibility
+          type: number
+        - name: priority
+          type: singleSelect
+          options: [critical, high, medium, low]
+        - name: status
+          type: singleSelect
+          options: [proposed, approved, in_progress, implemented, rejected]
+
+    Lessons_Learned:
+      fields:
+        - name: lesson_id
+          type: singleLineText
+          primary: true
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: category
+          type: singleSelect
+          options: [paradigm, process, capability, tool, technical]
+        - name: insight
+          type: multilineText
+        - name: action
+          type: multilineText
+        - name: status
+          type: singleSelect
+          options: [identified, validated, implemented]
+
+    System_Logs:
+      fields:
+        - name: log_id
+          type: singleLineText
+          primary: true
+        - name: timestamp
+          type: dateTime
+        - name: level
+          type: singleSelect
+          options: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+        - name: agent_id
+          type: singleSelect
+          options: [orchestrator, diagnostician, modeler, interventionist, reflector]
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: operation
+          type: singleLineText
+        - name: message
+          type: multilineText
+
+    Checkpoints:
+      fields:
+        - name: checkpoint_id
+          type: singleLineText
+          primary: true
+        - name: project_id
+          type: link
+          linked_table: Projects
+        - name: timestamp
+          type: dateTime
+        - name: state
+          type: singleSelect
+          options: [INIT, DIAGNOSIS, MODELING, INTERVENTION, REFLECTION]
+        - name: iteration
+          type: number
+        - name: trigger
+          type: singleSelect
+          options: [state_transition, handoff_complete, scheduled, manual, error_recovery]
+        - name: data_uri
+          type: url
+        - name: checksum
+          type: singleLineText
+
+# =============================================================================
+# GITHUB MCP OPERATIONS
+# =============================================================================
+
+github:
+  server_name: "@anthropic/mcp-server-github"
+
+  operations:
+    get_file_contents:
+      description: "Get contents of a file from repository"
+      input:
+        owner:
+          type: string
+          required: true
+        repo:
+          type: string
+          required: true
+        path:
+          type: string
+          required: true
+        ref:
+          type: string
+          required: false
+          description: "Branch, tag, or commit SHA"
+      output:
+        content: string
+        encoding: string
+        sha: string
+        size: number
+      errors:
+        - code: "E100"
+          condition: "File not found"
+        - code: "E101"
+          condition: "Repository access denied"
+
+    create_or_update_file:
+      description: "Create or update a file in repository"
+      input:
+        owner:
+          type: string
+          required: true
+        repo:
+          type: string
+          required: true
+        path:
+          type: string
+          required: true
+        content:
+          type: string
+          required: true
+          description: "File content (will be base64 encoded)"
+        message:
+          type: string
+          required: true
+          description: "Commit message"
+        sha:
+          type: string
+          required: false
+          description: "Required for updates (current file SHA)"
+        branch:
+          type: string
+          required: false
+          default: "main"
+      output:
+        commit:
+          sha: string
+          message: string
+        content:
+          path: string
+          sha: string
+      errors:
+        - code: "E103"
+          condition: "SHA mismatch (file changed)"
+        - code: "E101"
+          condition: "Write access denied"
+
+    list_directory:
+      description: "List contents of a directory"
+      input:
+        owner:
+          type: string
+          required: true
+        repo:
+          type: string
+          required: true
+        path:
+          type: string
+          required: false
+          default: ""
+        ref:
+          type: string
+          required: false
+      output:
+        contents:
+          type: array
+          items:
+            name: string
+            path: string
+            type: "file|dir"
+            sha: string
+            size: number
+      errors:
+        - code: "E100"
+          condition: "Directory not found"
+
+    create_issue:
+      description: "Create a new issue"
+      input:
+        owner:
+          type: string
+          required: true
+        repo:
+          type: string
+          required: true
+        title:
+          type: string
+          required: true
+        body:
+          type: string
+          required: false
+        labels:
+          type: array
+          items: string
+          required: false
+        assignees:
+          type: array
+          items: string
+          required: false
+      output:
+        number: integer
+        url: string
+        state: string
+      errors:
+        - code: "E101"
+          condition: "Cannot create issues in repository"
+
+    search_code:
+      description: "Search for code in repositories"
+      input:
+        query:
+          type: string
+          required: true
+          description: "Search query (GitHub code search syntax)"
+        per_page:
+          type: integer
+          required: false
+          default: 30
+      output:
+        total_count: integer
+        items:
+          type: array
+          items:
+            name: string
+            path: string
+            repository: object
+            sha: string
+      errors:
+        - code: "E306"
+          condition: "Search rate limit exceeded"
+
+  rate_limits:
+    requests_per_hour: 5000
+    search_requests_per_minute: 30
+
+# =============================================================================
+# BRAVE SEARCH MCP OPERATIONS
+# =============================================================================
+
+brave_search:
+  server_name: "@anthropic/mcp-server-brave-search"
+
+  operations:
+    web_search:
+      description: "Search the web using Brave Search"
+      input:
+        query:
+          type: string
+          required: true
+          max_length: 400
+        count:
+          type: integer
+          required: false
+          default: 10
+          maximum: 20
+        country:
+          type: string
+          required: false
+          description: "Two-letter country code"
+        search_lang:
+          type: string
+          required: false
+          default: "en"
+        freshness:
+          type: string
+          required: false
+          description: "pd (past day), pw (past week), pm (past month), py (past year)"
+      output:
+        results:
+          type: array
+          items:
+            title: string
+            url: string
+            description: string
+            age: string
+      errors:
+        - code: "E306"
+          condition: "Rate limit exceeded"
+        - code: "E303"
+          condition: "Brave Search unavailable"
+
+    local_search:
+      description: "Search for local businesses and places"
+      input:
+        query:
+          type: string
+          required: true
+        count:
+          type: integer
+          required: false
+          default: 5
+      output:
+        results:
+          type: array
+          items:
+            name: string
+            address: string
+            phone: string
+            rating: number
+            url: string
+      errors:
+        - code: "E303"
+          condition: "Local search unavailable"
+
+  rate_limits:
+    requests_per_month: 2000
+    requests_per_second: 1
+
+  use_cases:
+    part_number_lookup:
+      query_template: "{part_number} datasheet specifications"
+      description: "Look up part numbers to find datasheets"
+
+    manufacturer_search:
+      query_template: "{manufacturer} {product_type} specifications"
+      description: "Find manufacturer information"
+
+    mil_spec_search:
+      query_template: "MIL-STD-{spec_number} requirements"
+      description: "Look up military specifications"
+
+    material_properties:
+      query_template: "{material} mechanical properties density"
+      description: "Find material property data"
+
+    supplier_search:
+      query_template: "{component} supplier {country}"
+      description: "Find component suppliers"
+
+# =============================================================================
+# MEMORY MCP OPERATIONS
+# =============================================================================
+
+memory:
+  server_name: "@anthropic/mcp-server-memory"
+
+  operations:
+    store:
+      description: "Store a value in persistent memory"
+      input:
+        key:
+          type: string
+          required: true
+          description: "Unique key for the value"
+        value:
+          type: any
+          required: true
+          description: "Value to store (will be JSON serialized)"
+        namespace:
+          type: string
+          required: false
+          default: "default"
+          description: "Namespace for organizing keys"
+      output:
+        success: boolean
+        key: string
+      errors:
+        - code: "E303"
+          condition: "Memory service unavailable"
+
+    retrieve:
+      description: "Retrieve a value from memory"
+      input:
+        key:
+          type: string
+          required: true
+        namespace:
+          type: string
+          required: false
+          default: "default"
+      output:
+        value: any
+        found: boolean
+      errors:
+        - code: "E100"
+          condition: "Key not found"
+
+    delete:
+      description: "Delete a value from memory"
+      input:
+        key:
+          type: string
+          required: true
+        namespace:
+          type: string
+          required: false
+          default: "default"
+      output:
+        deleted: boolean
+      errors:
+        - code: "E100"
+          condition: "Key not found"
+
+    list_keys:
+      description: "List all keys in a namespace"
+      input:
+        namespace:
+          type: string
+          required: false
+          default: "default"
+        prefix:
+          type: string
+          required: false
+          description: "Filter keys by prefix"
+      output:
+        keys:
+          type: array
+          items: string
+
+  namespaces:
+    projects:
+      description: "Project-specific persistent data"
+      key_pattern: "{project_id}:{data_type}"
+
+    cross_project:
+      description: "Insights applicable across projects"
+      key_pattern: "insight:{category}:{id}"
+
+    team:
+      description: "Team capability and skill tracking"
+      key_pattern: "team:{member}:{attribute}"
+
+    paradigms:
+      description: "Paradigm shifts and mental model updates"
+      key_pattern: "paradigm:{date}:{id}"
+
+# =============================================================================
+# SEQUENTIAL THINKING MCP OPERATIONS
+# =============================================================================
+
+sequential_thinking:
+  server_name: "@anthropic/mcp-server-sequential-thinking"
+
+  operations:
+    analyze:
+      description: "Perform multi-step reasoning analysis"
+      input:
+        problem:
+          type: string
+          required: true
+          description: "Problem statement to analyze"
+        context:
+          type: object
+          required: false
+          description: "Additional context for analysis"
+        steps:
+          type: integer
+          required: false
+          default: 5
+          maximum: 10
+          description: "Maximum reasoning steps"
+      output:
+        reasoning:
+          type: array
+          items:
+            step: integer
+            thought: string
+            conclusion: string
+        final_answer: string
+        confidence: number
+      errors:
+        - code: "E300"
+          condition: "Analysis timed out"
+
+    decompose:
+      description: "Decompose a complex problem into sub-problems"
+      input:
+        problem:
+          type: string
+          required: true
+        decomposition_type:
+          type: string
+          required: false
+          enum: [functional, sequential, hierarchical]
+          default: "functional"
+      output:
+        sub_problems:
+          type: array
+          items:
+            id: string
+            description: string
+            dependencies: array
+        suggested_order: array
+
+    validate:
+      description: "Validate a hypothesis or conclusion"
+      input:
+        hypothesis:
+          type: string
+          required: true
+        evidence:
+          type: array
+          items: string
+          required: true
+        criteria:
+          type: array
+          items: string
+          required: false
+      output:
+        valid: boolean
+        confidence: number
+        reasoning: string
+        gaps: array
+
+  use_cases:
+    function_decomposition:
+      description: "Break down system function into subfunctions"
+
+    pattern_analysis:
+      description: "Identify design patterns from evidence"
+
+    trade_off_analysis:
+      description: "Analyze design trade-offs"
+
+    root_cause_analysis:
+      description: "Identify root causes of observations"
+
+# =============================================================================
+# FILESYSTEM MCP OPERATIONS
+# =============================================================================
+
+filesystem:
+  server_name: "@anthropic/mcp-server-filesystem"
+
+  operations:
+    read_file:
+      description: "Read contents of a file"
+      input:
+        path:
+          type: string
+          required: true
+          description: "Absolute or relative file path"
+      output:
+        content: string
+        size: number
+        modified: datetime
+      errors:
+        - code: "E100"
+          condition: "File not found"
+        - code: "E101"
+          condition: "Permission denied"
+
+    write_file:
+      description: "Write content to a file"
+      input:
+        path:
+          type: string
+          required: true
+        content:
+          type: string
+          required: true
+        create_directories:
+          type: boolean
+          required: false
+          default: true
+      output:
+        success: boolean
+        path: string
+        size: number
+      errors:
+        - code: "E101"
+          condition: "Permission denied"
+        - code: "E100"
+          condition: "Directory not found (if create_directories: false)"
+
+    list_directory:
+      description: "List contents of a directory"
+      input:
+        path:
+          type: string
+          required: true
+        recursive:
+          type: boolean
+          required: false
+          default: false
+      output:
+        entries:
+          type: array
+          items:
+            name: string
+            path: string
+            type: "file|directory"
+            size: number
+            modified: datetime
+      errors:
+        - code: "E100"
+          condition: "Directory not found"
+
+    create_directory:
+      description: "Create a directory"
+      input:
+        path:
+          type: string
+          required: true
+        recursive:
+          type: boolean
+          required: false
+          default: true
+      output:
+        success: boolean
+        path: string
+      errors:
+        - code: "E101"
+          condition: "Permission denied"
+
+    delete:
+      description: "Delete a file or directory"
+      input:
+        path:
+          type: string
+          required: true
+        recursive:
+          type: boolean
+          required: false
+          default: false
+          description: "Required for non-empty directories"
+      output:
+        deleted: boolean
+      errors:
+        - code: "E100"
+          condition: "Path not found"
+        - code: "E101"
+          condition: "Permission denied"
+
+  allowed_paths:
+    - "D:\\Claude\\RE-Claude-Agents"
+    - "D:\\Claude\\RE-Claude-Agents\\projects"
+
+# =============================================================================
+# OBSIDIAN MCP OPERATIONS (Optional)
+# =============================================================================
+
+obsidian:
+  server_name: "mcp-obsidian"
+  optional: true
+
+  operations:
+    search_notes:
+      description: "Search notes in Obsidian vault"
+      input:
+        query:
+          type: string
+          required: true
+        vault:
+          type: string
+          required: false
+      output:
+        results:
+          type: array
+          items:
+            title: string
+            path: string
+            excerpt: string
+            tags: array
+      errors:
+        - code: "E303"
+          condition: "Obsidian not running"
+
+    create_note:
+      description: "Create a new note"
+      input:
+        title:
+          type: string
+          required: true
+        content:
+          type: string
+          required: true
+        folder:
+          type: string
+          required: false
+        tags:
+          type: array
+          items: string
+          required: false
+      output:
+        path: string
+        created: boolean
+      errors:
+        - code: "E303"
+          condition: "Obsidian not running"
+
+    update_note:
+      description: "Update an existing note"
+      input:
+        path:
+          type: string
+          required: true
+        content:
+          type: string
+          required: true
+        append:
+          type: boolean
+          required: false
+          default: false
+      output:
+        updated: boolean
+      errors:
+        - code: "E100"
+          condition: "Note not found"
+
+    get_note:
+      description: "Get contents of a note"
+      input:
+        path:
+          type: string
+          required: true
+      output:
+        content: string
+        metadata: object
+        tags: array
+        links: array
+      errors:
+        - code: "E100"
+          condition: "Note not found"
+
+  fallback:
+    on_unavailable: "Use GitHub for knowledge storage instead"
+
+# =============================================================================
+# QUICKCHART MCP OPERATIONS (Optional)
+# =============================================================================
+
+quickchart:
+  server_name: "quickchart-mcp-server"
+  optional: true
+
+  operations:
+    generate_chart:
+      description: "Generate a chart image"
+      input:
+        type:
+          type: string
+          required: true
+          enum: [bar, line, pie, doughnut, radar, scatter, bubble]
+        data:
+          type: object
+          required: true
+          properties:
+            labels:
+              type: array
+              items: string
+            datasets:
+              type: array
+              items:
+                label: string
+                data: array
+                backgroundColor: string
+        options:
+          type: object
+          required: false
+        width:
+          type: integer
+          required: false
+          default: 500
+        height:
+          type: integer
+          required: false
+          default: 300
+      output:
+        url: string
+        success: boolean
+      errors:
+        - code: "E303"
+          condition: "QuickChart service unavailable"
+
+  fallback:
+    on_unavailable: "Use Mermaid diagrams instead"

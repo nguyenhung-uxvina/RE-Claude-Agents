@@ -1,0 +1,434 @@
+# Checkpoint Schema
+# State persistence and recovery for the RE Agent System
+# Version: 1.0
+
+version: "1.0"
+description: "Checkpoint specification for state persistence and recovery"
+
+imports:
+  - "./base-types.yaml"
+
+# =============================================================================
+# CHECKPOINT DATA STRUCTURE
+# =============================================================================
+
+checkpoint:
+  type: object
+  required: [checkpoint_id, project_id, timestamp, state, iteration]
+  description: "Complete snapshot of project state for recovery"
+
+  properties:
+    checkpoint_id:
+      type: string
+      format: uuid
+      description: "Unique identifier for this checkpoint"
+
+    project_id:
+      $ref: "base-types.yaml#/identifiers/project_id"
+
+    timestamp:
+      type: datetime
+      description: "When checkpoint was created"
+
+    state:
+      $ref: "base-types.yaml#/enums/state_id"
+      description: "Current state machine state"
+
+    iteration:
+      type: integer
+      minimum: 0
+      description: "Current iteration count"
+
+    trigger:
+      type: enum
+      values:
+        - state_transition
+        - handoff_complete
+        - scheduled
+        - manual
+        - error_recovery
+      description: "What triggered this checkpoint"
+
+    # Agent States
+    agent_states:
+      type: object
+      description: "State of each agent at checkpoint time"
+      properties:
+        orchestrator:
+          $ref: "#/agent_checkpoint_state"
+        diagnostician:
+          $ref: "#/agent_checkpoint_state"
+        modeler:
+          $ref: "#/agent_checkpoint_state"
+        interventionist:
+          $ref: "#/agent_checkpoint_state"
+        reflector:
+          $ref: "#/agent_checkpoint_state"
+
+    # Progress Metrics
+    progress_metrics:
+      type: object
+      properties:
+        documentation_completeness:
+          type: number
+          unit: percentage
+        functions_mapped:
+          type: number
+          unit: percentage
+        principles_identified:
+          type: number
+          unit: percentage
+        recommendations_generated:
+          type: integer
+        lessons_captured:
+          type: integer
+
+    # Loop History
+    loop_history:
+      type: array
+      items:
+        type: object
+        properties:
+          iteration:
+            type: integer
+          from_state:
+            type: string
+          to_state:
+            type: string
+          timestamp:
+            type: datetime
+          duration_seconds:
+            type: number
+          metrics:
+            type: object
+          outcome:
+            type: enum
+            values: [continued, completed, escalated, timed_out]
+
+    # Artifacts
+    artifacts:
+      type: array
+      description: "References to all artifacts at checkpoint time"
+      items:
+        type: object
+        properties:
+          artifact_id:
+            type: string
+            format: uuid
+          artifact_type:
+            type: enum
+            values:
+              - diagnosis_report
+              - modeling_report
+              - intervention_report
+              - reflection_report
+              - function_diagram
+              - component_catalog
+              - working_principles
+          uri:
+            type: string
+            format: uri
+          version:
+            type: string
+          checksum:
+            type: string
+            format: "sha256"
+            description: "SHA-256 hash for integrity verification"
+          created_at:
+            type: datetime
+
+    # Pending Work
+    pending_work:
+      type: object
+      description: "Work that was in progress when checkpoint was created"
+      properties:
+        pending_handoffs:
+          type: array
+          items:
+            handoff_id: string
+            handoff_type: string
+            sent_at: datetime
+            timeout_at: datetime
+        pending_verifications:
+          type: array
+          items:
+            hypothesis_id: string
+            status: string
+        queued_operations:
+          type: array
+          items:
+            operation: string
+            priority: string
+
+    # Configuration Snapshot
+    configuration:
+      type: object
+      description: "Configuration in effect at checkpoint time"
+      properties:
+        timeouts:
+          type: object
+        thresholds:
+          type: object
+        retry_limits:
+          type: object
+
+# =============================================================================
+# AGENT CHECKPOINT STATE
+# =============================================================================
+
+agent_checkpoint_state:
+  type: object
+  properties:
+    agent_id:
+      $ref: "base-types.yaml#/enums/agent_id"
+    status:
+      type: enum
+      values: [idle, processing, waiting, error]
+    last_handoff_id:
+      type: string
+      format: uuid
+    last_activity:
+      type: datetime
+    current_operation:
+      type: string
+    pending_tasks:
+      type: array
+      items:
+        type: string
+    completed_tasks:
+      type: array
+      items:
+        type: string
+    local_state:
+      type: object
+      description: "Agent-specific state data"
+
+# =============================================================================
+# CHECKPOINT TRIGGERS
+# =============================================================================
+
+checkpoint_triggers:
+  automatic:
+    on_state_transition:
+      enabled: true
+      description: "Checkpoint after every state transition"
+      priority: "high"
+
+    on_handoff_complete:
+      enabled: true
+      description: "Checkpoint after handoff completes"
+      priority: "medium"
+
+    on_artifact_created:
+      enabled: true
+      description: "Checkpoint after artifact is created"
+      priority: "medium"
+
+    time_based:
+      enabled: true
+      interval_minutes: 30
+      description: "Periodic checkpoint during long operations"
+      priority: "low"
+
+    on_error:
+      enabled: true
+      description: "Checkpoint when error occurs (before recovery)"
+      priority: "critical"
+
+  manual:
+    user_requested:
+      enabled: true
+      description: "User can request checkpoint at any time"
+
+    pre_escalation:
+      enabled: true
+      description: "Always checkpoint before escalation"
+
+# =============================================================================
+# CHECKPOINT STORAGE
+# =============================================================================
+
+checkpoint_storage:
+  primary:
+    type: "airtable"
+    table: "Checkpoints"
+    fields:
+      checkpoint_id: "single_line_text"
+      project_id: "link (Projects)"
+      timestamp: "datetime"
+      state: "single_select"
+      iteration: "number"
+      trigger: "single_select"
+      data_uri: "url"
+      checksum: "single_line_text"
+
+  backup:
+    type: "local_file"
+    path: "checkpoints/{project_id}/{checkpoint_id}.json"
+    compression: "gzip"
+
+  archive:
+    type: "github"
+    repository: "checkpoint-archive"
+    path: "checkpoints/{year}/{month}/{project_id}/"
+    archive_after_days: 30
+
+# =============================================================================
+# RECOVERY PROCEDURES
+# =============================================================================
+
+recovery_procedures:
+  automatic_recovery:
+    description: "Automatic recovery from checkpoint"
+    steps:
+      1_load_checkpoint:
+        action: "Load checkpoint data from storage"
+        validation: "Verify checkpoint exists and is valid"
+        on_failure: "Try previous checkpoint"
+
+      2_verify_artifacts:
+        action: "Verify all artifact checksums"
+        validation: "All checksums match"
+        on_failure: "Flag corrupted artifacts, continue if non-critical"
+
+      3_restore_state:
+        action: "Restore state machine state"
+        validation: "State is valid enum value"
+        on_failure: "Default to last known good state"
+
+      4_restore_agent_states:
+        action: "Restore each agent's state"
+        validation: "All agents acknowledge state restore"
+        on_failure: "Reset agent to idle, log warning"
+
+      5_replay_pending:
+        action: "Replay pending handoffs"
+        validation: "Handoffs accepted or rejected"
+        on_failure: "Create new handoffs as needed"
+
+      6_resume_processing:
+        action: "Resume from checkpoint state"
+        validation: "Processing continues normally"
+        on_failure: "Escalate to human"
+
+  manual_recovery:
+    description: "Human-assisted recovery"
+    options:
+      - name: "Restore from checkpoint"
+        description: "Restore to specific checkpoint"
+        requires: "checkpoint_id"
+
+      - name: "Restore to state"
+        description: "Restore to specific state, discard subsequent work"
+        requires: "target_state"
+
+      - name: "Reset agent"
+        description: "Reset specific agent to idle"
+        requires: "agent_id"
+
+      - name: "Force state"
+        description: "Force state machine to specific state"
+        requires: "target_state"
+        warning: "May cause inconsistency"
+
+  corruption_handling:
+    checkpoint_corrupted:
+      action: "Try previous checkpoint"
+      max_attempts: 5
+      on_all_failed: "Escalate to human with full history"
+
+    artifact_corrupted:
+      critical_artifact:
+        action: "Regenerate from earlier state"
+        on_failure: "Escalate to human"
+      non_critical_artifact:
+        action: "Continue without artifact, log warning"
+
+# =============================================================================
+# CHECKPOINT VALIDATION
+# =============================================================================
+
+checkpoint_validation:
+  on_save:
+    - validate_required_fields
+    - compute_artifact_checksums
+    - verify_state_consistency
+    - check_disk_space
+
+  on_load:
+    - verify_checkpoint_checksum
+    - validate_schema_version
+    - verify_artifact_checksums
+    - check_state_validity
+
+  integrity_checks:
+    checksum_algorithm: "SHA-256"
+    verify_artifacts: true
+    verify_loop_history: true
+
+# =============================================================================
+# CHECKPOINT LIFECYCLE
+# =============================================================================
+
+lifecycle:
+  creation:
+    max_checkpoints_per_project: 100
+    cleanup_on_complete: true
+    keep_final_checkpoint: true
+
+  retention:
+    active_project:
+      keep_all: true
+      description: "Keep all checkpoints while project is active"
+
+    completed_project:
+      keep_count: 5
+      keep_types: ["state_transition", "artifact_created"]
+      description: "Keep last 5 significant checkpoints"
+
+    archived_project:
+      keep_count: 1
+      keep_types: ["final"]
+      description: "Keep only final checkpoint"
+
+  cleanup:
+    schedule: "daily"
+    remove_orphaned: true
+    compress_old: true
+    archive_threshold_days: 30
+
+# =============================================================================
+# CHECKPOINT EXAMPLES
+# =============================================================================
+
+examples:
+  state_transition_checkpoint:
+    checkpoint_id: "550e8400-e29b-41d4-a716-446655440000"
+    project_id: "TOD-2025-001"
+    timestamp: "2025-12-22T15:30:00Z"
+    state: "MODELING"
+    iteration: 3
+    trigger: "state_transition"
+    agent_states:
+      orchestrator:
+        agent_id: "orchestrator"
+        status: "processing"
+        last_handoff_id: "660e8400-e29b-41d4-a716-446655440001"
+      diagnostician:
+        agent_id: "diagnostician"
+        status: "idle"
+        last_activity: "2025-12-22T14:00:00Z"
+      modeler:
+        agent_id: "modeler"
+        status: "processing"
+        current_operation: "reconstruct_function_structure"
+    progress_metrics:
+      documentation_completeness: 85
+      functions_mapped: 45
+      principles_identified: 30
+    artifacts:
+      - artifact_id: "770e8400-e29b-41d4-a716-446655440002"
+        artifact_type: "diagnosis_report"
+        uri: "github://RE-Claude-Agents/projects/tod/diagnosis-report.md"
+        version: "1.0"
+        checksum: "sha256:abc123..."

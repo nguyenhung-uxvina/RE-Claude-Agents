@@ -1,5 +1,10 @@
 # Reverse Engineering Agent System - Handoff Schemas
 # Inter-agent communication protocols and state transitions
+# Version: 2.0 - Added ACK/NACK protocol and error handling
+
+imports:
+  - "./base-types.yaml"
+  - "./error-schema.yaml"
 
 ---
 # =============================================================================
@@ -95,6 +100,237 @@ handoff_envelope:
       type: number
       required: false
       default: 0
+
+    max_retries:
+      type: number
+      required: false
+      default: 3
+      description: "Maximum retry attempts before escalation"
+
+    backoff_strategy:
+      type: enum
+      required: false
+      values: [none, linear, exponential]
+      default: exponential
+
+---
+# =============================================================================
+# HANDOFF RESPONSE ENVELOPE (ACK/NACK Protocol)
+# Standard response for all handoff messages
+# =============================================================================
+
+handoff_response_envelope:
+  description: "Standard acknowledgment/response for all handoff messages"
+
+  header:
+    response_id:
+      type: string
+      format: uuid
+      required: true
+      description: "Unique identifier for this response"
+
+    original_handoff_id:
+      type: string
+      format: uuid
+      required: true
+      description: "References the handoff being responded to"
+
+    project_id:
+      type: string
+      required: true
+
+    timestamp:
+      type: datetime
+      required: true
+
+    responding_agent:
+      type: enum
+      required: true
+      values:
+        - orchestrator
+        - diagnostician
+        - modeler
+        - interventionist
+        - reflector
+
+  response_type:
+    type: enum
+    required: true
+    values:
+      - ACK                 # Message received, processing will start
+      - NACK_INVALID        # Message rejected - schema validation failed
+      - NACK_BUSY           # Message rejected - agent currently busy
+      - NACK_TIMEOUT        # Message rejected - request timed out in queue
+      - NACK_UNAUTHORIZED   # Message rejected - sender not authorized
+      - PROCESSING          # Work in progress (interim update)
+      - COMPLETE            # Processing finished successfully
+      - PARTIAL             # Partial results available, more to come
+      - ERROR               # Processing failed with error
+      - ESCALATED           # Escalated to human or higher authority
+    descriptions:
+      ACK: "Immediate acknowledgment that handoff was received and queued"
+      NACK_INVALID: "Handoff rejected due to schema validation failure"
+      NACK_BUSY: "Agent is busy with another task, retry later"
+      NACK_TIMEOUT: "Handoff sat in queue too long without processing"
+      NACK_UNAUTHORIZED: "Sender agent not authorized for this handoff type"
+      PROCESSING: "Interim status update while work is in progress"
+      COMPLETE: "Work finished successfully with results"
+      PARTIAL: "Some results available, more processing needed"
+      ERROR: "Processing failed, see error_details"
+      ESCALATED: "Issue escalated beyond agent's authority"
+
+  processing_status:
+    type: object
+    required: false
+    description: "Present when response_type is PROCESSING"
+    properties:
+      progress_percentage:
+        type: number
+        minimum: 0
+        maximum: 100
+      current_operation:
+        type: string
+      estimated_completion:
+        type: datetime
+      can_cancel:
+        type: boolean
+        default: true
+
+  result_data:
+    type: object
+    required: false
+    description: "Present when response_type is COMPLETE or PARTIAL"
+    properties:
+      result_type:
+        type: string
+        description: "Type of result (matches expected_response)"
+      result_payload:
+        type: object
+        description: "The actual result data"
+      artifacts_created:
+        type: list
+        items:
+          artifact_id: string
+          artifact_type: string
+          artifact_uri: uri
+
+  error_details:
+    type: object
+    required: false
+    description: "Present when response_type is ERROR or NACK_*"
+    properties:
+      error_code:
+        type: string
+        description: "Error code from error-schema.yaml"
+      error_name:
+        type: string
+      error_message:
+        type: string
+      category:
+        type: enum
+        values: [input, resource, processing, system]
+      severity:
+        type: enum
+        values: [warning, error, fatal]
+      recoverable:
+        type: boolean
+      recovery_options:
+        type: list
+        items:
+          action: string
+          auto_executable: boolean
+      stack_trace:
+        type: string
+        required: false
+
+  escalation_details:
+    type: object
+    required: false
+    description: "Present when response_type is ESCALATED"
+    properties:
+      escalation_reason:
+        type: string
+      escalated_to:
+        type: enum
+        values: [orchestrator, human_operator, project_lead, system_admin]
+      escalation_id:
+        type: string
+      expected_resolution:
+        type: datetime
+
+  timing:
+    received_at:
+      type: datetime
+      required: true
+      description: "When the original handoff was received"
+    processing_started:
+      type: datetime
+      required: false
+    processing_completed:
+      type: datetime
+      required: false
+    total_duration_ms:
+      type: number
+      required: false
+
+  retry_info:
+    type: object
+    required: false
+    description: "Present when retry is recommended"
+    properties:
+      should_retry:
+        type: boolean
+      retry_count:
+        type: number
+        description: "How many times this has been retried"
+      next_retry_at:
+        type: datetime
+      backoff_duration_seconds:
+        type: number
+
+---
+# =============================================================================
+# ACKNOWLEDGMENT WORKFLOW
+# Defines the expected sequence of responses
+# =============================================================================
+
+acknowledgment_workflow:
+  description: "Standard flow for handoff acknowledgment"
+
+  immediate_response:
+    required: true
+    timeout_seconds: 5
+    expected_types: [ACK, NACK_INVALID, NACK_BUSY, NACK_UNAUTHORIZED]
+    on_timeout: "Treat as NACK_TIMEOUT, initiate retry"
+
+  processing_updates:
+    required: false
+    interval_seconds: 300  # Every 5 minutes for long operations
+    expected_types: [PROCESSING]
+    on_missing: "Log warning, continue waiting"
+
+  final_response:
+    required: true
+    timeout: "From handoff_envelope.metadata.timeout"
+    expected_types: [COMPLETE, PARTIAL, ERROR, ESCALATED]
+    on_timeout: "Treat as ERROR with E300 (TIMEOUT_EXCEEDED)"
+
+  retry_policy:
+    on_nack_busy:
+      action: "Wait and retry"
+      initial_delay_seconds: 30
+      max_retries: 3
+      backoff: exponential
+
+    on_nack_timeout:
+      action: "Retry immediately"
+      max_retries: 2
+
+    on_error_recoverable:
+      action: "Apply recovery option if auto_executable, else escalate"
+
+    on_error_non_recoverable:
+      action: "Escalate to orchestrator"
 
 ---
 # =============================================================================

@@ -103,11 +103,94 @@ skills:
     when: "Function decomposition and working principle identification"
 ```
 
+## Schema Dependencies
+
+```yaml
+imports:
+  - "../schemas/base-types.yaml"
+  - "../schemas/error-schema.yaml"
+  - "../schemas/handoff-schema.yaml"
+```
+
+## Interface Contract
+
+```yaml
+interface_contract:
+  input_validation:
+    required_fields:
+      - project_id
+      - diagnosis_report
+      - component_database
+
+    validation_rules:
+      - field: project_id
+        rule: "matches base-types.yaml#/identifiers/project_id format"
+        error_code: "E001"
+      - field: diagnosis_report
+        rule: "valid URI, artifact exists"
+        error_code: "E100"
+      - field: component_database
+        rule: "valid Airtable reference"
+        error_code: "E100"
+
+    on_invalid_input:
+      response_type: "NACK_INVALID"
+      include: ["field", "error_code", "error_message"]
+
+  output_guarantees:
+    on_success:
+      - function_structure diagram generated and stored
+      - working_principles catalog complete >= 90%
+      - all_components_mapped >= 95%
+      - validation_score >= 90%
+      - design_paradigm documented
+      - handoff_to_interventionist.ready: true
+
+    on_partial:
+      - function_structure with unmapped components listed
+      - working_principles catalog with gaps documented
+      - validation_score reported accurately
+      - uncertainties list populated
+      - handoff_to_interventionist.ready: false with reasons
+
+    on_failure:
+      - error_response per error-schema.yaml
+      - partial models preserved in GitHub
+      - verification_needed list populated
+      - recovery_options provided
+
+  idempotency:
+    behavior: "Idempotent with version control"
+    key_fields: ["project_id", "diagnosis_report.version"]
+    side_effects:
+      - "Creates/updates Functions table in Airtable"
+      - "Creates/updates Working_Principles table"
+      - "Commits diagrams to GitHub repository"
+      - "Logs to System_Logs table"
+    on_rerun:
+      - "Loads existing models"
+      - "Updates based on new/changed diagnosis data"
+      - "Creates new version, preserves history"
+
+  timeout_handling:
+    default_timeout: "14 days"
+    on_timeout:
+      action: "Save checkpoint and report partial model"
+      error_code: "E300"
+      recovery: "Resume from last validated function"
+
+  verification_loop:
+    max_iterations: 5
+    batch_size: 3
+    on_max_iterations: "PROCEED_WITH_CAVEATS"
+    timeout_per_verification: "48 hours"
+```
+
 ## Input Schema
 
 ```yaml
 modeling_request:
-  project_id: string
+  project_id: string                   # Per base-types.yaml#/identifiers/project_id
   diagnosis_report: uri                # From Diagnostician
   component_database: uri              # Airtable reference
   focus_subsystems: list               # Priority areas

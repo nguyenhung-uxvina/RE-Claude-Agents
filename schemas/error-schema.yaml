@@ -1,0 +1,514 @@
+# Error Response Schema
+# Standardized error handling for the RE Agent System
+# Version: 1.0
+
+version: "1.0"
+description: "Error codes, categories, and structured error responses"
+
+imports:
+  - "./base-types.yaml"
+
+# =============================================================================
+# ERROR CODES
+# =============================================================================
+
+error_codes:
+  # Input Errors (E001-E099)
+  E001:
+    code: "E001"
+    name: "INVALID_INPUT_SCHEMA"
+    category: input
+    severity: error
+    description: "Input does not conform to expected schema"
+    recoverable: true
+    suggested_action: "Validate input against schema and resubmit"
+
+  E002:
+    code: "E002"
+    name: "MISSING_REQUIRED_FIELD"
+    category: input
+    severity: error
+    description: "Required field is missing from input"
+    recoverable: true
+    suggested_action: "Add missing field and resubmit"
+
+  E003:
+    code: "E003"
+    name: "INVALID_FIELD_VALUE"
+    category: input
+    severity: error
+    description: "Field value is invalid (wrong type, out of range)"
+    recoverable: true
+    suggested_action: "Correct field value and resubmit"
+
+  E004:
+    code: "E004"
+    name: "INVALID_STATE_TRANSITION"
+    category: input
+    severity: error
+    description: "Requested state transition is not allowed"
+    recoverable: true
+    suggested_action: "Check current state and valid transitions"
+
+  # Resource Errors (E100-E199)
+  E100:
+    code: "E100"
+    name: "RESOURCE_NOT_FOUND"
+    category: resource
+    severity: error
+    description: "Referenced resource (artifact, project, component) not found"
+    recoverable: true
+    suggested_action: "Verify resource ID and check if resource exists"
+
+  E101:
+    code: "E101"
+    name: "RESOURCE_ACCESS_DENIED"
+    category: resource
+    severity: error
+    description: "Insufficient permissions to access resource"
+    recoverable: false
+    suggested_action: "Request access or escalate to administrator"
+
+  E102:
+    code: "E102"
+    name: "RESOURCE_LOCKED"
+    category: resource
+    severity: warning
+    description: "Resource is locked by another operation"
+    recoverable: true
+    suggested_action: "Wait and retry, or request lock release"
+
+  E103:
+    code: "E103"
+    name: "RESOURCE_STALE"
+    category: resource
+    severity: warning
+    description: "Resource has been modified since last access"
+    recoverable: true
+    suggested_action: "Refresh resource and retry with updated version"
+
+  E104:
+    code: "E104"
+    name: "ARTIFACT_CHECKSUM_MISMATCH"
+    category: resource
+    severity: error
+    description: "Artifact checksum does not match expected value"
+    recoverable: true
+    suggested_action: "Re-download artifact or regenerate from source"
+
+  # Processing Errors (E200-E299)
+  E200:
+    code: "E200"
+    name: "PROCESSING_FAILED"
+    category: processing
+    severity: error
+    description: "Generic processing failure"
+    recoverable: false
+    suggested_action: "Review error details and retry or escalate"
+
+  E201:
+    code: "E201"
+    name: "VALIDATION_FAILED"
+    category: processing
+    severity: error
+    description: "Output validation failed quality gates"
+    recoverable: true
+    suggested_action: "Review validation failures and address gaps"
+
+  E202:
+    code: "E202"
+    name: "INSUFFICIENT_DATA"
+    category: processing
+    severity: warning
+    description: "Insufficient data to complete analysis"
+    recoverable: true
+    suggested_action: "Provide additional data or proceed with caveats"
+
+  E203:
+    code: "E203"
+    name: "CONFIDENCE_TOO_LOW"
+    category: processing
+    severity: warning
+    description: "Analysis confidence below acceptable threshold"
+    recoverable: true
+    suggested_action: "Request verification or accept with caveats"
+
+  E204:
+    code: "E204"
+    name: "MAX_ITERATIONS_EXCEEDED"
+    category: processing
+    severity: error
+    description: "Maximum loop iterations exceeded"
+    recoverable: false
+    suggested_action: "Escalate to human for decision"
+
+  E205:
+    code: "E205"
+    name: "NO_PROGRESS_DETECTED"
+    category: processing
+    severity: warning
+    description: "No improvement detected across iterations"
+    recoverable: true
+    suggested_action: "Review approach or escalate"
+
+  E206:
+    code: "E206"
+    name: "VERIFICATION_CONTRADICTED"
+    category: processing
+    severity: warning
+    description: "Physical verification contradicted model hypothesis"
+    recoverable: true
+    suggested_action: "Revise model based on verification results"
+
+  # System Errors (E300-E399)
+  E300:
+    code: "E300"
+    name: "TIMEOUT_EXCEEDED"
+    category: system
+    severity: error
+    description: "Operation timed out"
+    recoverable: true
+    suggested_action: "Retry with longer timeout or break into smaller operations"
+
+  E301:
+    code: "E301"
+    name: "AGENT_UNAVAILABLE"
+    category: system
+    severity: error
+    description: "Target agent is not available"
+    recoverable: true
+    suggested_action: "Retry after delay or use fallback agent"
+
+  E302:
+    code: "E302"
+    name: "MCP_CONNECTION_FAILED"
+    category: system
+    severity: error
+    description: "Failed to connect to MCP server"
+    recoverable: true
+    suggested_action: "Check MCP server status and retry"
+
+  E303:
+    code: "E303"
+    name: "EXTERNAL_SERVICE_FAILURE"
+    category: system
+    severity: error
+    description: "External service (Airtable, GitHub, etc.) failed"
+    recoverable: true
+    suggested_action: "Check service status and retry"
+
+  E304:
+    code: "E304"
+    name: "DEPENDENCY_MISSING"
+    category: system
+    severity: error
+    description: "Required dependency not available"
+    recoverable: false
+    suggested_action: "Install/configure dependency"
+
+  E305:
+    code: "E305"
+    name: "CHECKPOINT_CORRUPTED"
+    category: system
+    severity: fatal
+    description: "Checkpoint data is corrupted"
+    recoverable: false
+    suggested_action: "Restore from earlier checkpoint or restart"
+
+  E306:
+    code: "E306"
+    name: "RATE_LIMIT_EXCEEDED"
+    category: system
+    severity: warning
+    description: "API rate limit exceeded"
+    recoverable: true
+    suggested_action: "Wait for rate limit reset and retry"
+
+# =============================================================================
+# ERROR CATEGORIES
+# =============================================================================
+
+error_categories:
+  input:
+    description: "Errors related to invalid input data"
+    typical_recovery: "Fix input and retry"
+    escalation_threshold: 3  # Escalate after 3 consecutive input errors
+
+  resource:
+    description: "Errors related to accessing or modifying resources"
+    typical_recovery: "Verify resource availability and retry"
+    escalation_threshold: 5
+
+  processing:
+    description: "Errors during analysis or transformation"
+    typical_recovery: "Review approach or provide additional data"
+    escalation_threshold: 2
+
+  system:
+    description: "Infrastructure or external service errors"
+    typical_recovery: "Wait and retry with exponential backoff"
+    escalation_threshold: 3
+
+# =============================================================================
+# SEVERITY LEVELS
+# =============================================================================
+
+severity_levels:
+  warning:
+    level: 1
+    description: "Non-blocking issue that should be addressed"
+    action: "Log and continue with caveat"
+    notification: false
+
+  error:
+    level: 2
+    description: "Blocking issue that prevents completion"
+    action: "Attempt recovery, then fail gracefully"
+    notification: true
+
+  fatal:
+    level: 3
+    description: "Critical failure requiring immediate attention"
+    action: "Stop processing, escalate immediately"
+    notification: true
+    escalation: immediate
+
+# =============================================================================
+# ERROR RESPONSE STRUCTURE
+# =============================================================================
+
+error_response:
+  type: object
+  required: [error_code, error_message, timestamp, agent_id]
+  properties:
+    error_code:
+      type: string
+      description: "Error code from error_codes enumeration"
+      example: "E201"
+
+    error_name:
+      type: string
+      description: "Human-readable error name"
+      example: "VALIDATION_FAILED"
+
+    error_message:
+      type: string
+      description: "Detailed error message"
+      example: "Documentation completeness (72%) below threshold (80%)"
+
+    category:
+      type: enum
+      values: [input, resource, processing, system]
+
+    severity:
+      type: enum
+      values: [warning, error, fatal]
+
+    timestamp:
+      $ref: "base-types.yaml#/temporal/timestamp"
+
+    agent_id:
+      $ref: "base-types.yaml#/enums/agent_id"
+
+    project_id:
+      $ref: "base-types.yaml#/identifiers/project_id"
+
+    correlation_id:
+      $ref: "base-types.yaml#/identifiers/correlation_id"
+
+    context:
+      type: object
+      properties:
+        state:
+          $ref: "base-types.yaml#/enums/state_id"
+        operation:
+          type: string
+          description: "Operation that caused the error"
+        input_summary:
+          type: string
+          description: "Summary of input that caused error"
+        stack_trace:
+          type: string
+          description: "Technical stack trace (for debugging)"
+
+    recoverable:
+      type: boolean
+      description: "Can this error be recovered from?"
+
+    recovery_options:
+      type: array
+      items:
+        type: object
+        properties:
+          action:
+            type: string
+            description: "Recovery action to take"
+          auto_executable:
+            type: boolean
+            description: "Can system execute this automatically?"
+          requires_human:
+            type: boolean
+          estimated_success:
+            type: number
+            minimum: 0
+            maximum: 100
+            description: "Estimated success probability"
+
+    escalation_path:
+      type: object
+      description: "Escalation details if severity >= error"
+      properties:
+        escalate_to:
+          type: enum
+          values: [orchestrator, human_operator, project_lead, system_admin]
+        escalation_reason:
+          type: string
+        data_to_include:
+          type: array
+          items:
+            type: string
+        notification_channels:
+          type: array
+          items:
+            type: enum
+            values: [log, email, slack, dashboard]
+
+    retry_info:
+      type: object
+      properties:
+        retry_count:
+          type: integer
+          minimum: 0
+        max_retries:
+          type: integer
+        next_retry_at:
+          $ref: "base-types.yaml#/temporal/timestamp"
+        backoff_strategy:
+          type: enum
+          values: [none, linear, exponential]
+
+# =============================================================================
+# RECOVERY PROCEDURES
+# =============================================================================
+
+recovery_procedures:
+  automatic:
+    description: "Recovery actions system can execute automatically"
+    procedures:
+      - error_pattern: "E30[0-3]"  # System/MCP errors
+        action: "retry_with_backoff"
+        max_attempts: 3
+        backoff_base: 5  # seconds
+        backoff_multiplier: 2
+
+      - error_pattern: "E102"  # Resource locked
+        action: "wait_and_retry"
+        wait_duration: 30  # seconds
+        max_attempts: 5
+
+      - error_pattern: "E306"  # Rate limit
+        action: "wait_for_reset"
+        wait_duration: 60  # seconds
+
+  manual:
+    description: "Recovery actions requiring human intervention"
+    procedures:
+      - error_pattern: "E101"  # Access denied
+        action: "request_access_grant"
+        escalate_to: "system_admin"
+
+      - error_pattern: "E204"  # Max iterations
+        action: "human_decision_required"
+        escalate_to: "project_lead"
+        options:
+          - "Force completion with current results"
+          - "Restart with modified parameters"
+          - "Terminate project"
+
+      - error_pattern: "E305"  # Checkpoint corrupted
+        action: "manual_recovery"
+        escalate_to: "system_admin"
+
+# =============================================================================
+# ESCALATION MATRIX
+# =============================================================================
+
+escalation_matrix:
+  levels:
+    L1_orchestrator:
+      description: "Orchestrator handles automatically"
+      response_time: "immediate"
+      notification: "log only"
+
+    L2_human_operator:
+      description: "Operator review required"
+      response_time: "15 minutes"
+      notification: "dashboard alert"
+
+    L3_project_lead:
+      description: "Project lead decision required"
+      response_time: "4 hours"
+      notification: "email + dashboard"
+
+    L4_system_admin:
+      description: "System administrator intervention"
+      response_time: "1 hour"
+      notification: "all channels"
+
+  rules:
+    - condition: "severity == fatal"
+      escalate_to: "L4_system_admin"
+
+    - condition: "severity == error AND retry_count >= max_retries"
+      escalate_to: "L2_human_operator"
+
+    - condition: "error_code == E204"  # Max iterations
+      escalate_to: "L3_project_lead"
+
+    - condition: "error_category == input AND consecutive_count >= 3"
+      escalate_to: "L2_human_operator"
+
+# =============================================================================
+# USAGE EXAMPLES
+# =============================================================================
+
+examples:
+  validation_failure:
+    error_code: "E201"
+    error_name: "VALIDATION_FAILED"
+    error_message: "Documentation completeness (72%) below threshold (80%)"
+    category: "processing"
+    severity: "error"
+    timestamp: "2025-12-22T15:30:00Z"
+    agent_id: "diagnostician"
+    project_id: "TOD-2025-001"
+    correlation_id: "550e8400-e29b-41d4-a716-446655440000"
+    context:
+      state: "DIAGNOSIS"
+      operation: "validate_documentation"
+    recoverable: true
+    recovery_options:
+      - action: "Continue with partial documentation"
+        auto_executable: false
+        requires_human: true
+        estimated_success: 70
+      - action: "Request additional access time"
+        auto_executable: false
+        requires_human: true
+        estimated_success: 90
+
+  timeout_error:
+    error_code: "E300"
+    error_name: "TIMEOUT_EXCEEDED"
+    error_message: "Modeler verification request timed out after 48 hours"
+    category: "system"
+    severity: "error"
+    timestamp: "2025-12-22T15:30:00Z"
+    agent_id: "modeler"
+    project_id: "TOD-2025-001"
+    recoverable: true
+    retry_info:
+      retry_count: 2
+      max_retries: 3
+      next_retry_at: "2025-12-22T16:30:00Z"
+      backoff_strategy: "exponential"

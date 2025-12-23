@@ -438,18 +438,478 @@ orchestrator_config:
     modeling_max: "14 days"
     intervention_max: "7 days"
     reflection_max: "3 days"
-    
+    idle_timeout: "48 hours"
+
   thresholds:
     documentation_minimum: 80%
     model_validation_minimum: 90%
-    
+    recommendation_confidence_minimum: 70%
+
   retry_limits:
     diagnosis_loops: 3
     modeling_verifications: 5
-    
+    intervention_refinements: 3
+
   notifications:
     on_state_change: true
     on_milestone: true
     on_error: true
     on_complete: true
+    on_escalation: true
+```
+
+## Feedback Loop Controls
+
+### Loop Termination Conditions
+
+```yaml
+loop_controls:
+  global:
+    max_project_duration: "30 days"
+    max_total_iterations: 20
+    idle_timeout: "48 hours"
+    description: "Global limits apply across all loops"
+
+  diagnosis_loop:
+    max_iterations: 3
+    improvement_threshold: 10%
+    description: "Must improve documentation by at least 10% each iteration"
+    termination_conditions:
+      - documentation_completeness >= 80%
+      - max_iterations_reached
+      - no_progress_after_iteration
+      - blocking_issue_unresolvable
+    on_max_iterations: "ESCALATE"
+    on_no_progress: "ESCALATE"
+
+  modeling_verification_loop:
+    max_iterations: 5
+    batch_size: 3
+    diminishing_returns_threshold: 5%
+    description: "Verify up to 3 hypotheses per round, max 5 rounds"
+    termination_conditions:
+      - all_blocking_hypotheses_verified
+      - validation_score >= 90%
+      - max_iterations_reached
+      - diminishing_returns_detected
+    on_max_iterations: "PROCEED_WITH_CAVEATS"
+    on_diminishing_returns: "PROCEED_WITH_CAVEATS"
+
+  intervention_refinement_loop:
+    max_iterations: 3
+    significance_threshold: "blocking"
+    description: "Only loop for blocking refinements"
+    termination_conditions:
+      - all_blocking_refinements_complete
+      - max_iterations_reached
+    on_max_iterations: "ESCALATE"
+
+  reflection_cycle_loop:
+    max_new_cycles: 2
+    description: "Limit re-analysis to 2 additional cycles"
+    termination_conditions:
+      - no_new_cycle_recommended
+      - max_cycles_reached
+    on_max_cycles: "FORCE_COMPLETE"
+```
+
+### Progress Tracking
+
+```yaml
+progress_metrics:
+  per_iteration:
+    iteration_number: integer
+    state: string
+    timestamp_start: datetime
+    timestamp_end: datetime
+    metrics_before:
+      completeness: percentage
+      confidence: percentage
+    metrics_after:
+      completeness: percentage
+      confidence: percentage
+    improvement: percentage
+
+  progress_detection:
+    no_progress_definition: "improvement < improvement_threshold for 2 consecutive iterations"
+    diminishing_returns_definition: "improvement < diminishing_returns_threshold"
+
+  loop_history:
+    - iteration: number
+      from_state: string
+      to_state: string
+      timestamp: datetime
+      duration_seconds: number
+      metrics: object
+      outcome: enum [continued, completed, escalated, timed_out]
+```
+
+## Escalation Procedures
+
+### Escalation Triggers
+
+```yaml
+escalation_triggers:
+  automatic:
+    - condition: "max_iterations_exceeded"
+      severity: "high"
+      escalate_to: "human_operator"
+
+    - condition: "no_progress_detected"
+      severity: "medium"
+      escalate_to: "project_lead"
+
+    - condition: "timeout_exceeded"
+      severity: "high"
+      escalate_to: "human_operator"
+
+    - condition: "blocking_issue_unresolvable"
+      severity: "critical"
+      escalate_to: "project_lead"
+
+    - condition: "verification_contradicted_model_3_times"
+      severity: "high"
+      escalate_to: "project_lead"
+
+    - condition: "error_state_entered_3_times"
+      severity: "critical"
+      escalate_to: "system_admin"
+
+  severity_levels:
+    low:
+      response_time: "24 hours"
+      notification: "log_only"
+    medium:
+      response_time: "4 hours"
+      notification: "dashboard_alert"
+    high:
+      response_time: "1 hour"
+      notification: "email + dashboard"
+    critical:
+      response_time: "15 minutes"
+      notification: "all_channels"
+```
+
+### Escalation Actions
+
+```yaml
+escalation_actions:
+  ESCALATE_TO_HUMAN:
+    action: "Pause processing and await human decision"
+    state_transition: "ESCALATED"
+    data_package:
+      - current_state
+      - iteration_history
+      - loop_metrics
+      - blocking_issues
+      - partial_results
+      - recommended_options
+    notification:
+      recipients: ["project_lead", "technical_director"]
+      channels: ["email", "dashboard"]
+      urgency: "high"
+    timeout: "72 hours"
+    on_timeout: "FORCE_TERMINATE"
+
+  PAUSE_AND_ASSESS:
+    action: "Pause for assessment without full escalation"
+    state_transition: "PAUSED"
+    assessment_questions:
+      - "Is the objective achievable with current access?"
+      - "Are there alternative approaches?"
+      - "Should parameters be adjusted?"
+      - "Is additional expertise needed?"
+    auto_resume_conditions:
+      - "assessment_complete"
+      - "human_override"
+    max_pause_duration: "48 hours"
+
+  PROCEED_WITH_CAVEATS:
+    action: "Continue to next phase with documented limitations"
+    state_transition: "next_state"
+    caveats_required:
+      - areas_not_fully_validated: list
+      - confidence_reductions: object
+      - assumptions_made: list
+    flag_in_final_report: true
+
+  FORCE_COMPLETE:
+    action: "Force project to COMPLETE state with current results"
+    state_transition: "COMPLETE"
+    documentation_required:
+      - incomplete_areas: list
+      - reason_for_force_complete: string
+      - quality_assessment: object
+```
+
+### Human Decision Options
+
+```yaml
+human_decision_options:
+  on_max_iterations:
+    - option: "Force completion with current results"
+      action: "FORCE_COMPLETE"
+    - option: "Grant additional iterations"
+      action: "RESET_ITERATION_COUNT"
+      parameters: [additional_iterations: number]
+    - option: "Change approach"
+      action: "MODIFY_PARAMETERS"
+      parameters: [new_focus_areas: list]
+    - option: "Terminate project"
+      action: "TERMINATE"
+
+  on_blocking_issue:
+    - option: "Proceed without blocked area"
+      action: "PROCEED_WITH_CAVEATS"
+    - option: "Request additional access"
+      action: "REQUEST_ACCESS"
+    - option: "Assign specialist"
+      action: "ASSIGN_SPECIALIST"
+    - option: "Terminate project"
+      action: "TERMINATE"
+```
+
+## Enhanced State Machine with Guards
+
+### State Machine Implementation
+
+```python
+class ReverseEngineeringOrchestrator:
+    """Enhanced orchestrator with loop controls and escalation"""
+
+    # Configuration
+    MAX_TOTAL_ITERATIONS = 20
+    MAX_PROJECT_DURATION_DAYS = 30
+    IDLE_TIMEOUT_HOURS = 48
+
+    def __init__(self):
+        self.airtable = AirtableMCP()
+        self.memory = MemoryMCP()
+        self.state = "INIT"
+        self.iteration_count = 0
+        self.loop_history = []
+        self.checkpoints = []
+        self.start_time = None
+
+    async def process(self, user_input):
+        """Main processing loop with guards"""
+        project = await self.initialize_project(user_input)
+        self.start_time = datetime.now()
+
+        while self.state not in ["COMPLETE", "ERROR", "ESCALATED", "TERMINATED"]:
+            # === GUARD: Maximum iterations ===
+            self.iteration_count += 1
+            if self.iteration_count > self.MAX_TOTAL_ITERATIONS:
+                await self.escalate("MAX_ITERATIONS_EXCEEDED", project)
+                break
+
+            # === GUARD: Project duration ===
+            if self._check_project_timeout():
+                await self.escalate("PROJECT_TIMEOUT", project)
+                break
+
+            # === GUARD: No progress detection ===
+            if self._detect_no_progress():
+                await self.escalate("NO_PROGRESS", project)
+                break
+
+            # === GUARD: Idle timeout ===
+            if await self._check_idle_timeout(project):
+                await self.escalate("IDLE_TIMEOUT", project)
+                break
+
+            # Record state before execution
+            previous_state = self.state
+            iteration_start = datetime.now()
+            metrics_before = await self._capture_metrics(project)
+
+            # Execute current phase
+            try:
+                result = await self._execute_current_phase(project)
+            except Exception as e:
+                await self._handle_execution_error(e, project)
+                continue
+
+            # Evaluate result and determine next state
+            new_state = self._evaluate_result(result)
+            metrics_after = await self._capture_metrics(project)
+
+            # Record loop history
+            self.loop_history.append({
+                "iteration": self.iteration_count,
+                "from_state": previous_state,
+                "to_state": new_state,
+                "timestamp_start": iteration_start,
+                "timestamp_end": datetime.now(),
+                "metrics_before": metrics_before,
+                "metrics_after": metrics_after,
+                "improvement": self._calculate_improvement(metrics_before, metrics_after),
+                "result_summary": result.summary if hasattr(result, 'summary') else None
+            })
+
+            # Update state
+            self.state = new_state
+
+            # Checkpoint after each state transition
+            await self._checkpoint(project)
+
+            # Log state transition
+            await self._log_state_transition(project, previous_state, new_state)
+
+        return await self.compile_final_report(project)
+
+    def _check_project_timeout(self) -> bool:
+        """Check if project has exceeded maximum duration"""
+        if self.start_time is None:
+            return False
+        elapsed = datetime.now() - self.start_time
+        return elapsed.days > self.MAX_PROJECT_DURATION_DAYS
+
+    def _detect_no_progress(self) -> bool:
+        """Detect if no progress is being made"""
+        if len(self.loop_history) < 2:
+            return False
+        recent = self.loop_history[-2:]
+        # No progress if same state and improvement < threshold for 2 iterations
+        same_state = recent[0]["from_state"] == recent[1]["from_state"]
+        no_improvement = all(h["improvement"] < 0.10 for h in recent)
+        return same_state and no_improvement
+
+    async def _check_idle_timeout(self, project) -> bool:
+        """Check if project has been idle too long"""
+        last_activity = await self.airtable.get_last_activity(project.id)
+        if last_activity is None:
+            return False
+        elapsed = datetime.now() - last_activity
+        return elapsed.total_seconds() > (self.IDLE_TIMEOUT_HOURS * 3600)
+
+    def _calculate_improvement(self, before: dict, after: dict) -> float:
+        """Calculate improvement percentage between metrics"""
+        if "completeness" in before and "completeness" in after:
+            return (after["completeness"] - before["completeness"]) / 100
+        return 0.0
+
+    async def escalate(self, reason: str, project):
+        """Escalate to human decision-maker"""
+        self.state = "ESCALATED"
+
+        escalation_data = {
+            "project_id": project.id,
+            "reason": reason,
+            "iteration_count": self.iteration_count,
+            "loop_history": self.loop_history,
+            "current_metrics": await self._capture_metrics(project),
+            "timestamp": datetime.now(),
+            "recommended_options": self._get_escalation_options(reason)
+        }
+
+        await self.airtable.log_escalation(escalation_data)
+        await self._notify_stakeholders(reason, project)
+
+    async def _checkpoint(self, project):
+        """Save checkpoint for recovery"""
+        checkpoint = {
+            "checkpoint_id": str(uuid.uuid4()),
+            "project_id": project.id,
+            "timestamp": datetime.now(),
+            "state": self.state,
+            "iteration_count": self.iteration_count,
+            "loop_history": self.loop_history,
+            "artifacts": await self._collect_artifact_refs(project)
+        }
+        self.checkpoints.append(checkpoint)
+        await self.airtable.save_checkpoint(checkpoint)
+
+    async def recover_from_checkpoint(self, checkpoint_id: str):
+        """Restore state from checkpoint"""
+        checkpoint = await self.airtable.load_checkpoint(checkpoint_id)
+        self.state = checkpoint["state"]
+        self.iteration_count = checkpoint["iteration_count"]
+        self.loop_history = checkpoint["loop_history"]
+        # Verify artifact integrity before resuming
+        await self._verify_artifacts(checkpoint["artifacts"])
+```
+
+## Concurrent Project Management
+
+```yaml
+concurrency_model:
+  project_isolation:
+    description: "Each project runs in isolated context"
+    guarantees:
+      - separate_state_machine_instance
+      - separate_airtable_records
+      - separate_checkpoints
+      - separate_loop_history
+
+  resource_sharing:
+    mcp_servers:
+      airtable:
+        sharing: "connection_pooled"
+        max_connections: 10
+        timeout_per_request: 30
+      github:
+        sharing: "project_scoped"
+        rate_limit_aware: true
+      memory:
+        sharing: "namespaced_by_project"
+      brave_search:
+        sharing: "rate_limited"
+        requests_per_minute: 30
+      sequential_thinking:
+        sharing: "per_request"
+
+  scheduling:
+    max_concurrent_projects: 3
+    priority_queue:
+      order:
+        1: "critical priority projects"
+        2: "high priority projects"
+        3: "time-sensitive operations"
+        4: "round-robin for equal priority"
+
+  conflict_resolution:
+    knowledge_base_updates:
+      strategy: "optimistic_locking"
+      on_conflict: "merge_if_possible_else_manual"
+    shared_artifacts:
+      strategy: "copy_on_write"
+```
+
+## Interface Contract
+
+```yaml
+interface_contract:
+  input_validation:
+    required_fields:
+      - system_identification.designation: "non-empty string"
+      - system_identification.origin_country: "non-empty string"
+      - analysis_objective.primary_goal: "valid enum value"
+      - specimen_access.location: "non-empty string"
+    validation_errors:
+      - MISSING_DESIGNATION: "System designation is required"
+      - MISSING_ORIGIN: "Origin country is required"
+      - INVALID_OBJECTIVE: "Primary goal must be one of: replicate, counter, insert_tech, understand"
+
+  output_guarantees:
+    on_complete:
+      - final_report: "valid URI to compiled report"
+      - project_metrics: "complete metrics object"
+      - knowledge_updates: "list of updates made"
+    on_escalated:
+      - escalation_reason: "string describing why escalated"
+      - current_state: "last known good state"
+      - partial_results: "any completed work"
+    on_error:
+      - error_code: "from error-schema.yaml"
+      - error_message: "human-readable description"
+      - recovery_options: "list of possible recovery actions"
+
+  idempotency:
+    behavior: "Re-running with same input resumes from checkpoint if exists"
+    side_effects:
+      - Airtable project record created/updated
+      - Handoff logs created
+      - Checkpoints saved
+      - Agent handoffs triggered
 ```

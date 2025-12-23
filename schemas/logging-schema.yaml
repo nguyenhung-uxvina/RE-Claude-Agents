@@ -1,0 +1,453 @@
+# Logging Specification Schema
+# Standardized logging for the RE Agent System
+# Version: 1.0
+
+version: "1.0"
+description: "Logging specification for operational and audit logging"
+
+imports:
+  - "./base-types.yaml"
+
+# =============================================================================
+# LOG LEVELS
+# =============================================================================
+
+log_levels:
+  TRACE:
+    level: 0
+    description: "Detailed execution flow for debugging"
+    retention: "7 days"
+    storage: "local_only"
+
+  DEBUG:
+    level: 1
+    description: "Diagnostic information for troubleshooting"
+    retention: "14 days"
+    storage: "local_only"
+
+  INFO:
+    level: 2
+    description: "Normal operational messages"
+    retention: "30 days"
+    storage: "local_and_airtable"
+
+  WARN:
+    level: 3
+    description: "Potential issues that may require attention"
+    retention: "90 days"
+    storage: "local_and_airtable"
+
+  ERROR:
+    level: 4
+    description: "Failures that prevented operation completion"
+    retention: "1 year"
+    storage: "all"
+
+  FATAL:
+    level: 5
+    description: "Critical failures requiring immediate attention"
+    retention: "permanent"
+    storage: "all"
+
+# =============================================================================
+# LOG ENTRY STRUCTURE
+# =============================================================================
+
+log_entry:
+  type: object
+  required: [log_id, timestamp, level, agent_id, message]
+  properties:
+    log_id:
+      type: string
+      format: uuid
+      description: "Unique identifier for this log entry"
+
+    timestamp:
+      type: datetime
+      format: "ISO 8601"
+      description: "When the event occurred (UTC)"
+
+    level:
+      type: enum
+      values: [TRACE, DEBUG, INFO, WARN, ERROR, FATAL]
+
+    agent_id:
+      $ref: "base-types.yaml#/enums/agent_id"
+      description: "Which agent generated this log"
+
+    project_id:
+      $ref: "base-types.yaml#/identifiers/project_id"
+      required: false
+      description: "Associated project (if any)"
+
+    correlation_id:
+      $ref: "base-types.yaml#/identifiers/correlation_id"
+      description: "For tracing related operations across agents"
+
+    state:
+      $ref: "base-types.yaml#/enums/state_id"
+      required: false
+      description: "Current state when log was generated"
+
+    operation:
+      type: string
+      description: "Operation being performed"
+      examples:
+        - "validate_input"
+        - "execute_handoff"
+        - "checkpoint_save"
+        - "escalation_trigger"
+
+    message:
+      type: string
+      description: "Human-readable log message"
+
+    context:
+      type: object
+      required: false
+      description: "Additional contextual data"
+      properties:
+        handoff_id:
+          type: string
+        iteration:
+          type: number
+        metrics:
+          type: object
+        input_summary:
+          type: string
+        output_summary:
+          type: string
+        custom:
+          type: object
+          description: "Agent-specific context data"
+
+    duration_ms:
+      type: number
+      required: false
+      description: "Operation duration in milliseconds"
+
+    error_details:
+      type: object
+      required: false
+      description: "Present if level >= ERROR"
+      properties:
+        error_code:
+          type: string
+        error_name:
+          type: string
+        stack_trace:
+          type: string
+        recovery_attempted:
+          type: boolean
+        recovery_successful:
+          type: boolean
+
+    tags:
+      type: array
+      items:
+        type: string
+      required: false
+      description: "Tags for filtering and categorization"
+      examples:
+        - "handoff"
+        - "state_transition"
+        - "checkpoint"
+        - "escalation"
+        - "performance"
+
+# =============================================================================
+# AUDIT EVENTS
+# =============================================================================
+
+audit_events:
+  description: "Events that must always be logged for audit trail"
+
+  events:
+    PROJECT_CREATED:
+      level: INFO
+      description: "New project initialized"
+      required_context:
+        - project_id
+        - designation
+        - objective
+        - created_by
+
+    PROJECT_COMPLETED:
+      level: INFO
+      description: "Project reached COMPLETE state"
+      required_context:
+        - project_id
+        - duration
+        - final_metrics
+
+    PROJECT_TERMINATED:
+      level: WARN
+      description: "Project terminated before completion"
+      required_context:
+        - project_id
+        - termination_reason
+        - partial_results
+
+    STATE_TRANSITION:
+      level: INFO
+      description: "State machine state changed"
+      required_context:
+        - project_id
+        - from_state
+        - to_state
+        - trigger
+        - iteration
+
+    HANDOFF_SENT:
+      level: INFO
+      description: "Handoff message sent to agent"
+      required_context:
+        - handoff_id
+        - from_agent
+        - to_agent
+        - handoff_type
+
+    HANDOFF_RECEIVED:
+      level: INFO
+      description: "Handoff message received by agent"
+      required_context:
+        - handoff_id
+        - response_type
+
+    HANDOFF_COMPLETED:
+      level: INFO
+      description: "Handoff processing completed"
+      required_context:
+        - handoff_id
+        - result_type
+        - duration_ms
+
+    HANDOFF_FAILED:
+      level: ERROR
+      description: "Handoff processing failed"
+      required_context:
+        - handoff_id
+        - error_code
+        - error_message
+        - recoverable
+
+    VERIFICATION_REQUESTED:
+      level: INFO
+      description: "Physical verification requested"
+      required_context:
+        - project_id
+        - hypothesis_count
+        - requesting_agent
+
+    VERIFICATION_COMPLETED:
+      level: INFO
+      description: "Verification results received"
+      required_context:
+        - project_id
+        - verified_count
+        - contradicted_count
+
+    ESCALATION_TRIGGERED:
+      level: WARN
+      description: "Issue escalated to human"
+      required_context:
+        - project_id
+        - escalation_reason
+        - severity
+        - escalated_to
+
+    ESCALATION_RESOLVED:
+      level: INFO
+      description: "Escalation resolved"
+      required_context:
+        - project_id
+        - resolution
+        - resolved_by
+        - resolution_time
+
+    CHECKPOINT_SAVED:
+      level: DEBUG
+      description: "Checkpoint saved"
+      required_context:
+        - project_id
+        - checkpoint_id
+        - state
+        - iteration
+
+    CHECKPOINT_RESTORED:
+      level: INFO
+      description: "State restored from checkpoint"
+      required_context:
+        - project_id
+        - checkpoint_id
+        - restore_reason
+
+    ARTIFACT_CREATED:
+      level: INFO
+      description: "New artifact generated"
+      required_context:
+        - project_id
+        - artifact_type
+        - artifact_uri
+
+    KNOWLEDGE_UPDATED:
+      level: INFO
+      description: "Knowledge base updated"
+      required_context:
+        - project_id
+        - update_type
+        - target_store
+
+    ERROR_OCCURRED:
+      level: ERROR
+      description: "Error encountered during processing"
+      required_context:
+        - project_id
+        - error_code
+        - error_message
+        - operation
+        - recoverable
+
+    RECOVERY_ATTEMPTED:
+      level: INFO
+      description: "Error recovery attempted"
+      required_context:
+        - project_id
+        - error_code
+        - recovery_action
+        - successful
+
+# =============================================================================
+# LOG STORAGE CONFIGURATION
+# =============================================================================
+
+storage_configuration:
+  local:
+    format: "JSON Lines"
+    path: "logs/{date}/{agent_id}.jsonl"
+    rotation:
+      type: "daily"
+      max_files: 30
+    compression: "gzip"
+
+  airtable:
+    table: "System_Logs"
+    batch_size: 100
+    flush_interval_seconds: 60
+    fields:
+      - log_id
+      - timestamp
+      - level
+      - agent_id
+      - project_id
+      - operation
+      - message
+
+  github:
+    repository: "audit-logs"
+    branch: "main"
+    path: "logs/{year}/{month}/{project_id}.json"
+    commit_batch_size: 50
+    commit_message_template: "Audit log update: {count} entries"
+
+# =============================================================================
+# RETENTION POLICIES
+# =============================================================================
+
+retention_policies:
+  operational_logs:
+    description: "Day-to-day operational logs"
+    retention_period: "30 days"
+    applies_to: [TRACE, DEBUG, INFO]
+    storage: ["local"]
+    archive_after: "7 days"
+    delete_after: "30 days"
+
+  warning_logs:
+    description: "Warning level logs"
+    retention_period: "90 days"
+    applies_to: [WARN]
+    storage: ["local", "airtable"]
+    archive_after: "30 days"
+    delete_after: "90 days"
+
+  error_logs:
+    description: "Error and fatal logs"
+    retention_period: "1 year"
+    applies_to: [ERROR, FATAL]
+    storage: ["local", "airtable", "github"]
+    archive_after: "90 days"
+    delete_after: "1 year"
+
+  audit_logs:
+    description: "Audit trail events"
+    retention_period: "permanent"
+    applies_to: "all audit_events"
+    storage: ["airtable", "github"]
+    archive_after: "1 year"
+    delete_after: "never"
+
+# =============================================================================
+# PERFORMANCE LOGGING
+# =============================================================================
+
+performance_logging:
+  enabled: true
+  sample_rate: 100%  # Log all operations for now
+
+  metrics:
+    operation_timing:
+      fields:
+        - operation_name
+        - start_time
+        - end_time
+        - duration_ms
+        - success
+
+    resource_usage:
+      fields:
+        - mcp_server
+        - request_count
+        - error_count
+        - avg_latency_ms
+
+    throughput:
+      fields:
+        - handoffs_per_hour
+        - state_transitions_per_hour
+        - artifacts_created_per_day
+
+  thresholds:
+    slow_operation_ms: 5000
+    critical_operation_ms: 30000
+    alert_on_threshold: true
+
+# =============================================================================
+# LOG QUERY PATTERNS
+# =============================================================================
+
+query_patterns:
+  by_project:
+    description: "Get all logs for a project"
+    filter: "project_id == {project_id}"
+    sort: "timestamp DESC"
+
+  by_correlation:
+    description: "Trace related operations"
+    filter: "correlation_id == {correlation_id}"
+    sort: "timestamp ASC"
+
+  errors_by_agent:
+    description: "Get errors for specific agent"
+    filter: "agent_id == {agent_id} AND level >= ERROR"
+    sort: "timestamp DESC"
+
+  recent_escalations:
+    description: "Get recent escalations"
+    filter: "tags CONTAINS 'escalation' AND timestamp > {since}"
+    sort: "timestamp DESC"
+
+  state_transitions:
+    description: "Get state transition history"
+    filter: "project_id == {project_id} AND tags CONTAINS 'state_transition'"
+    sort: "timestamp ASC"

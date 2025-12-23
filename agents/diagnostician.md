@@ -85,11 +85,93 @@ skills:
     when: "Before handoff to Modeler"
 ```
 
+## Schema Dependencies
+
+```yaml
+imports:
+  - "../schemas/base-types.yaml"
+  - "../schemas/error-schema.yaml"
+  - "../schemas/handoff-schema.yaml"
+```
+
+## Interface Contract
+
+```yaml
+interface_contract:
+  input_validation:
+    required_fields:
+      - project_id
+      - specimen_access
+      - documentation_level
+
+    validation_rules:
+      - field: project_id
+        rule: "matches base-types.yaml#/identifiers/project_id format"
+        error_code: "E001"
+      - field: documentation_level
+        rule: "enum: [external, subsystem, component]"
+        error_code: "E003"
+      - field: specimen_access.access_duration
+        rule: "positive number"
+        error_code: "E003"
+
+    on_invalid_input:
+      response_type: "NACK_INVALID"
+      include: ["field", "error_code", "error_message"]
+
+  output_guarantees:
+    on_success:
+      - diagnosis_report complete with all required fields
+      - documentation_completeness >= configured threshold
+      - all_critical_subsystems_documented: true
+      - component_catalog created in Airtable
+      - handoff_to_modeler.ready: true
+
+    on_partial:
+      - diagnosis_report with gaps_documented
+      - documentation_completeness reported accurately
+      - blockers list populated
+      - handoff_to_modeler.ready: false with reasons
+
+    on_failure:
+      - error_response per error-schema.yaml
+      - partial_data preserved if any
+      - recovery_options provided
+      - checkpoint saved before failure
+
+  idempotency:
+    behavior: "Partial idempotent - re-run merges with existing data"
+    key_fields: ["project_id", "documentation_level"]
+    side_effects:
+      - "Creates/updates records in Airtable Components table"
+      - "Stores images in filesystem"
+      - "Logs to System_Logs table"
+    on_rerun:
+      - "Loads existing documentation"
+      - "Fills gaps, does not overwrite confirmed data"
+      - "Increments version number"
+
+  timeout_handling:
+    default_timeout: "7 days"
+    on_timeout:
+      action: "Save checkpoint and report partial results"
+      error_code: "E300"
+      recovery: "Resume from checkpoint"
+
+  rate_limits:
+    brave_search:
+      requests_per_minute: 10
+      on_limit: "Queue and retry with backoff"
+    airtable:
+      requests_per_second: 5
+      on_limit: "Batch operations"
+```
+
 ## Input Schema
 
 ```yaml
 documentation_request:
-  system_id: string                    # Project reference
+  project_id: string                   # Project reference (per base-types.yaml)
   specimen_access:
     location: string                   # Where specimen is located
     access_duration: hours             # Time available

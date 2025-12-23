@@ -96,11 +96,101 @@ skills:
     when: "Developing replication pathway"
 ```
 
+## Schema Dependencies
+
+```yaml
+imports:
+  - "../schemas/base-types.yaml"
+  - "../schemas/error-schema.yaml"
+  - "../schemas/handoff-schema.yaml"
+```
+
+## Interface Contract
+
+```yaml
+interface_contract:
+  input_validation:
+    required_fields:
+      - project_id
+      - function_structure
+      - working_principles
+      - analysis_objective
+
+    validation_rules:
+      - field: project_id
+        rule: "matches base-types.yaml#/identifiers/project_id format"
+        error_code: "E001"
+      - field: function_structure
+        rule: "valid URI, artifact exists and validated"
+        error_code: "E100"
+      - field: working_principles
+        rule: "valid URI, catalog exists"
+        error_code: "E100"
+      - field: analysis_objective.primary_goal
+        rule: "enum: [replicate, counter, insert_tech, understand]"
+        error_code: "E003"
+
+    on_invalid_input:
+      response_type: "NACK_INVALID"
+      include: ["field", "error_code", "error_message"]
+
+  output_guarantees:
+    on_success:
+      - intervention_report complete with executive_summary
+      - all_strategies_evaluated per objective
+      - vdi_2225_completed (if replication)
+      - leverage_analysis_complete: true
+      - recommendations_actionable: true
+      - feasibility_assessed with percentages
+      - handoff_to_reflector.ready: true
+
+    on_partial:
+      - intervention_report with evaluated strategies
+      - infeasible paths documented with reasons
+      - partial recommendations flagged
+      - handoff_to_reflector.ready: false with blockers
+
+    on_failure:
+      - error_response per error-schema.yaml
+      - partial analysis preserved
+      - blocking_issues documented
+      - recovery_options provided
+
+  idempotency:
+    behavior: "Idempotent - re-run produces consistent recommendations"
+    key_fields: ["project_id", "analysis_objective", "function_structure.version"]
+    side_effects:
+      - "Creates records in Recommendations table"
+      - "Updates Feasibility_Assessments table"
+      - "Stores reports in GitHub"
+      - "Logs to System_Logs table"
+    on_rerun:
+      - "Loads existing recommendations"
+      - "Re-evaluates with current market/capability data"
+      - "Updates feasibility scores"
+      - "Versions previous recommendations"
+
+  timeout_handling:
+    default_timeout: "7 days"
+    on_timeout:
+      action: "Complete current strategy analysis, defer others"
+      error_code: "E300"
+      recovery: "Resume with remaining strategies"
+
+  external_dependencies:
+    brave_search:
+      purpose: "Indigenous capability and supplier lookup"
+      fallback: "Use cached capability database"
+    memory:
+      purpose: "Cross-project insights"
+      fallback: "Proceed without historical context"
+```
+
 ## Input Schema
 
 ```yaml
 intervention_request:
-  project_id: string
+  project_id: string                   # Per base-types.yaml#/identifiers/project_id
   function_structure: uri              # From Modeler
   working_principles: uri              # From Modeler
   design_paradigm: object              # From Modeler

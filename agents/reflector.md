@@ -109,11 +109,102 @@ skills:
     when: "Process improvement recommendations"
 ```
 
+## Schema Dependencies
+
+```yaml
+imports:
+  - "../schemas/base-types.yaml"
+  - "../schemas/error-schema.yaml"
+  - "../schemas/handoff-schema.yaml"
+```
+
+## Interface Contract
+
+```yaml
+interface_contract:
+  input_validation:
+    required_fields:
+      - project_id
+      - all_artifacts
+      - timeline
+      - outcomes
+
+    validation_rules:
+      - field: project_id
+        rule: "matches base-types.yaml#/identifiers/project_id format"
+        error_code: "E001"
+      - field: all_artifacts.diagnosis_report
+        rule: "valid URI or null with reason"
+        error_code: "E100"
+      - field: timeline.actual
+        rule: "contains start_date and phase_durations"
+        error_code: "E002"
+
+    on_invalid_input:
+      response_type: "NACK_INVALID"
+      include: ["field", "error_code", "error_message"]
+
+  output_guarantees:
+    on_success:
+      - reflection_report complete
+      - after_action_review covers all four questions
+      - lessons_learned_captured >= 5
+      - process_improvements_identified >= 1
+      - knowledge_persisted to all required stores
+      - project_closure.ready_for_closure: true or false with reasons
+
+    on_partial:
+      - reflection_report with completed sections
+      - minimum lessons captured
+      - knowledge persistence attempted
+      - outstanding_items documented
+
+    on_failure:
+      - error_response per error-schema.yaml
+      - partial insights preserved locally
+      - retry_info for persistence failures
+      - manual_capture_required flagged
+
+  idempotency:
+    behavior: "Additive - re-run adds new insights, preserves existing"
+    key_fields: ["project_id", "reflection_date"]
+    side_effects:
+      - "Creates records in Lessons_Learned table"
+      - "Updates Templates in GitHub"
+      - "Stores insights in Memory MCP"
+      - "Creates notes in Obsidian"
+      - "Logs to System_Logs table"
+    on_rerun:
+      - "Loads existing reflection"
+      - "Identifies new insights from updated artifacts"
+      - "Merges with existing lessons"
+      - "Does not duplicate entries"
+
+  timeout_handling:
+    default_timeout: "3 days"
+    on_timeout:
+      action: "Prioritize paradigm and capability insights"
+      error_code: "E300"
+      recovery: "Defer detailed process improvements"
+
+  knowledge_persistence:
+    required_stores:
+      - airtable: "Lessons_Learned table"
+      - github: "Process documentation"
+      - memory: "Cross-project insights"
+    optional_stores:
+      - obsidian: "Knowledge notes"
+    on_store_failure:
+      action: "Log error, continue with other stores"
+      retry: "Queue for later sync"
+      alert: "If all required stores fail"
+```
+
 ## Input Schema
 
 ```yaml
 reflection_request:
-  project_id: string
+  project_id: string                   # Per base-types.yaml#/identifiers/project_id
   all_artifacts:
     diagnosis_report: uri
     modeling_report: uri
